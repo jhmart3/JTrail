@@ -38,10 +38,12 @@
   }
 
   // Decide the delay summary for this leg.
-  //   - If the leg has REAL (after-the-fact) arrival → "h:mm Early/Late"
-  //   - Else if the leg has an ESTIMATED arrival → "Est. h:mm Early/Late"
-  //   - Falls back to departure if arrival data is missing
-  //   - Returns null when the diff is within ±1 min (treat as on-time)
+  // Priority order matters: arrival (real, then estimated) wins over departure
+  // (real, then estimated). A flight that pushed back 23 min late but is
+  // expected to land on time should read "Est. on time" rather than "0:23
+  // Late" — the eventual arrival is the bottom-line outcome the passenger
+  // cares about. Departure is the fallback signal when we have no arrival
+  // information at all.
   type Summary = { label: string; tone: 'early' | 'late' | 'on-time' };
   function pickSummary(): Summary | null {
     const candidates: Array<{
@@ -50,17 +52,17 @@
       kind: 'real' | 'est';
     }> = [
       { scheduled: leg.schedArr, actual: leg.realArr, kind: 'real' },
-      { scheduled: leg.schedDep, actual: leg.realDep, kind: 'real' },
       { scheduled: leg.schedArr, actual: leg.estArr, kind: 'est' },
+      { scheduled: leg.schedDep, actual: leg.realDep, kind: 'real' },
       { scheduled: leg.schedDep, actual: leg.estDep, kind: 'est' },
     ];
     for (const c of candidates) {
       if (!c.scheduled || !c.actual) continue;
       const diffMin = Math.round((c.actual - c.scheduled) / 60);
-      if (diffMin >= -1 && diffMin <= 1) {
-        return { label: 'on time', tone: 'on-time' };
-      }
       const prefix = c.kind === 'est' ? 'Est. ' : '';
+      if (diffMin >= -1 && diffMin <= 1) {
+        return { label: `${prefix}on time`, tone: 'on-time' };
+      }
       if (diffMin > 0) {
         return { label: `${prefix}${fmtHM(diffMin)} Late`, tone: 'late' };
       }
