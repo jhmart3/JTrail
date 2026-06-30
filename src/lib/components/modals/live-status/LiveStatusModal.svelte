@@ -108,13 +108,11 @@
     {:else if upcoming.length === 0}
       <EmptyState />
     {:else}
-      {#if upcoming.length > 1}
-        <FlightSelector
-          flights={upcoming}
-          {selectedId}
-          onSelect={(id) => (selectedId = id)}
-        />
-      {/if}
+      <FlightSelector
+        flights={upcoming}
+        {selectedId}
+        onSelect={(id) => (selectedId = id)}
+      />
 
       {#if isRotationLoading}
         <p class="text-sm text-muted-foreground py-8 text-center">
