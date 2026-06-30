@@ -224,7 +224,7 @@
     title="Edit flight"
     icon={SquarePen}
   />
-  <form method="POST" action="/api/flight/save/form" use:enhance>
+  <form method="POST" action="/api/flight/save/form" novalidate use:enhance>
     <FlightForm {form} />
     <ModalFooter>
       <div class="flex w-full items-center justify-between">

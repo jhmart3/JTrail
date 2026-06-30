@@ -86,7 +86,7 @@
 
 <Modal bind:open closeOnOutsideClick={false} class="max-w-screen-lg">
   <ModalBreadcrumbHeader section="Flights" title="New flight" icon={Globe} />
-  <form method="POST" action="/api/flight/save/form" use:enhance>
+  <form method="POST" action="/api/flight/save/form" novalidate use:enhance>
     <FlightForm {form} />
     <ModalFooter>
       <div class="flex w-full items-center justify-between">
