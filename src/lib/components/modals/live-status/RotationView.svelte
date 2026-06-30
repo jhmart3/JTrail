@@ -17,7 +17,11 @@
       Today's rotation
     </h3>
     {#if yourLeg.tail}
-      <span class="text-xs text-muted-foreground">tail {yourLeg.tail}</span>
+      <span
+        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+      >
+        Aircraft {yourLeg.tail}
+      </span>
     {/if}
   </header>
 

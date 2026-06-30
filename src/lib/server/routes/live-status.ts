@@ -138,11 +138,39 @@ export const liveStatusRouter = router({
 
       const backupRoutes = await getBackupRoutes(originIata, destIata, cleaned);
 
+      // Look up the IANA tz for every airport that appears in any leg. FR24
+      // sometimes includes tz info in the response but its format is unstable;
+      // the JTrail airports table is authoritative IANA. One DB query for the
+      // whole rotation is cheaper than serializing tz onto every FR24 row.
+      const allLegs = [yourLeg, ...priorLegs, ...backupRoutes];
+      const iatas = new Set<string>();
+      for (const leg of allLegs) {
+        if (leg.origin) iatas.add(leg.origin);
+        if (leg.destination) iatas.add(leg.destination);
+      }
+      const tzByIata = new Map<string, string>();
+      if (iatas.size > 0) {
+        const rows = await db
+          .selectFrom('airport')
+          .select(['iata', 'tz'])
+          .where('iata', 'in', [...iatas])
+          .execute();
+        for (const r of rows) {
+          if (r.iata) tzByIata.set(r.iata, r.tz);
+        }
+      }
+      const enrich = (leg: FR24Leg): FR24Leg => ({
+        ...leg,
+        originTz: (leg.origin && tzByIata.get(leg.origin)) ?? null,
+        destinationTz:
+          (leg.destination && tzByIata.get(leg.destination)) ?? null,
+      });
+
       return {
         kind: 'ok' as const,
-        yourLeg,
-        priorLegs,
-        backupRoutes,
+        yourLeg: enrich(yourLeg),
+        priorLegs: priorLegs.map(enrich),
+        backupRoutes: backupRoutes.map(enrich),
         fetchedAt: new Date().toISOString(),
       };
     }),

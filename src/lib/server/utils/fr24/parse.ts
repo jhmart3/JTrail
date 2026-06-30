@@ -1,16 +1,33 @@
 // Shape we extract from one row of an FR24 airport-board response.
 // Mirrors the dict produced by parse_flight() in the Python prototype
-// at /Users/jack/Projects/flights/flights.py.
+// at /Users/jack/Projects/flights/flights.py, with two intentional
+// differences:
+//   1. real / estimated times are kept separate (the prototype collapsed
+//      them into one "actual" value), so the UI can show "h:mm Late" for
+//      already-completed legs vs "Est. h:mm Late" for legs that have not
+//      happened yet but already have an FR24-estimated delay.
+//   2. originTz / destinationTz fields are present but always null after
+//      parse — the router fills them in via the JTrail airports table.
 export type FR24Leg = {
   flightNumber: string;
   tail: string | null;
   origin: string | null;
+  /** IANA tz name for the origin airport. Filled in by the router, not parse. */
+  originTz: string | null;
   destination: string | null;
+  /** IANA tz name for the destination airport. Filled in by the router, not parse. */
+  destinationTz: string | null;
   airline: string;
-  schedDep: number | null; // unix seconds
+  schedDep: number | null;
   schedArr: number | null;
-  actualDep: number | null;
-  actualArr: number | null;
+  /** After-the-fact actual departure (wheels-off as reported by FR24). */
+  realDep: number | null;
+  /** After-the-fact actual arrival (gate-in as reported by FR24). */
+  realArr: number | null;
+  /** FR24 estimate for an upcoming departure. Null once realDep is known. */
+  estDep: number | null;
+  /** FR24 estimate for an upcoming arrival. Null once realArr is known. */
+  estArr: number | null;
   status: string;
 };
 
@@ -35,21 +52,21 @@ export function parseLeg(raw: unknown): FR24Leg {
   const real = time.real ?? {};
   const status = r.status ?? {};
 
-  // Prefer "real" (after-the-fact) timestamps. Fall back to "estimated" when
-  // the flight hasn't departed/landed yet.
-  const actualDep: number | null = real.departure ?? estimated.departure ?? null;
-  const actualArr: number | null = real.arrival ?? estimated.arrival ?? null;
-
   return {
     flightNumber: (number.default ?? '') as string,
     tail: (aircraft.registration ?? null) as string | null,
     origin: (originCode.iata ?? null) as string | null,
+    originTz: null,
     destination: (destCode.iata ?? null) as string | null,
+    destinationTz: null,
     airline: (airline.name ?? 'Unknown') as string,
     schedDep: (scheduled.departure ?? null) as number | null,
     schedArr: (scheduled.arrival ?? null) as number | null,
-    actualDep,
-    actualArr,
+    realDep: (real.departure ?? null) as number | null,
+    realArr: (real.arrival ?? null) as number | null,
+    estDep: (estimated.departure ?? null) as number | null,
+    estArr: (estimated.arrival ?? null) as number | null,
     status: (status.text ?? 'Unknown') as string,
   };
 }
+

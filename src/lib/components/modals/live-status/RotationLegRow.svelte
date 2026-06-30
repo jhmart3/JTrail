@@ -1,50 +1,64 @@
 <script lang="ts">
   import type { FR24Leg } from '$lib/server/utils/fr24';
 
-  // Format an FR24 unix-seconds timestamp as a short local time ("11:55 AM").
-  // Returns "--" when missing. Uses the rendering client's locale.
-  function fmtTime(ts: number | null | undefined): string {
-    if (!ts) return '--';
-    const d = new Date(ts * 1000);
-    return d.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-
-  // Reuses the same formatter idea as the flight list: < 60 min stays in
-  // raw minutes, >= 60 min rolls to h:mm. Negative diffs (early) are folded
-  // to absolute and labeled accordingly.
-  function fmtDelay(minutes: number): string {
-    const abs = Math.abs(minutes);
-    if (abs < 60) return `${abs}`;
-    const h = Math.floor(abs / 60);
-    const mm = String(abs % 60).padStart(2, '0');
-    return `${h}:${mm}`;
-  }
-
-  function delayMinutes(scheduled: number | null, actual: number | null) {
-    if (!scheduled || !actual) return null;
-    return Math.round((actual - scheduled) / 60);
-  }
-
   let {
     leg,
     highlighted = false,
   }: { leg: FR24Leg; highlighted?: boolean } = $props();
 
-  const depDelta = $derived(delayMinutes(leg.schedDep, leg.actualDep));
-  const arrDelta = $derived(delayMinutes(leg.schedArr, leg.actualArr));
+  // Format an FR24 unix-seconds timestamp as a short local time ("11:55 AM")
+  // in the given IANA tz. Falls back to the user's local tz when tz is null
+  // (rare — only if the JTrail airports table doesn't know this IATA).
+  function fmtTime(ts: number | null, tz: string | null): string {
+    if (!ts) return '--';
+    return new Date(ts * 1000).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: tz ?? undefined,
+    });
+  }
 
-  // Prefer the arrival delta when the leg has landed (it's the bottom-line
-  // outcome). Fall back to departure delta when we only know departure.
-  const summary = $derived.by(() => {
-    const d = arrDelta ?? depDelta;
-    if (d === null) return null;
-    if (d > 1) return { label: `+${fmtDelay(d)}`, tone: 'late' as const };
-    if (d < -1) return { label: `${fmtDelay(d)} early`, tone: 'early' as const };
-    return { label: 'on time', tone: 'on-time' as const };
-  });
+  // Render a positive-minute delay as "h:mm". 14 min → "0:14", 75 min → "1:15".
+  function fmtHM(minutes: number): string {
+    const abs = Math.abs(minutes);
+    const h = Math.floor(abs / 60);
+    const mm = String(abs % 60).padStart(2, '0');
+    return `${h}:${mm}`;
+  }
+
+  // Decide the delay summary for this leg.
+  //   - If the leg has REAL (after-the-fact) arrival → "h:mm Early/Late"
+  //   - Else if the leg has an ESTIMATED arrival → "Est. h:mm Early/Late"
+  //   - Falls back to departure if arrival data is missing
+  //   - Returns null when the diff is within ±1 min (treat as on-time)
+  type Summary = { label: string; tone: 'early' | 'late' | 'on-time' };
+  function pickSummary(): Summary | null {
+    const candidates: Array<{
+      scheduled: number | null;
+      actual: number | null;
+      kind: 'real' | 'est';
+    }> = [
+      { scheduled: leg.schedArr, actual: leg.realArr, kind: 'real' },
+      { scheduled: leg.schedDep, actual: leg.realDep, kind: 'real' },
+      { scheduled: leg.schedArr, actual: leg.estArr, kind: 'est' },
+      { scheduled: leg.schedDep, actual: leg.estDep, kind: 'est' },
+    ];
+    for (const c of candidates) {
+      if (!c.scheduled || !c.actual) continue;
+      const diffMin = Math.round((c.actual - c.scheduled) / 60);
+      if (diffMin >= -1 && diffMin <= 1) {
+        return { label: 'on time', tone: 'on-time' };
+      }
+      const prefix = c.kind === 'est' ? 'Est. ' : '';
+      if (diffMin > 0) {
+        return { label: `${prefix}${fmtHM(diffMin)} Late`, tone: 'late' };
+      }
+      return { label: `${prefix}${fmtHM(diffMin)} Early`, tone: 'early' };
+    }
+    return null;
+  }
+
+  const summary = $derived(pickSummary());
 </script>
 
 <div
@@ -68,9 +82,9 @@
       </span>
     </div>
     <div class="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-      <span>Dep {fmtTime(leg.schedDep)}</span>
+      <span>Dep {fmtTime(leg.schedDep, leg.originTz)}</span>
       <span>→</span>
-      <span>Arr {fmtTime(leg.schedArr)}</span>
+      <span>Arr {fmtTime(leg.schedArr, leg.destinationTz)}</span>
     </div>
   </div>
   <div class="flex flex-col items-end justify-center text-right shrink-0">
@@ -84,9 +98,10 @@
       >
         {summary.label}
       </span>
+    {:else}
+      <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
+        {leg.status}
+      </span>
     {/if}
-    <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
-      {leg.status}
-    </span>
   </div>
 </div>
