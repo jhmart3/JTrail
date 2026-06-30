@@ -8,9 +8,13 @@ const MAX_BACKUP_PAGES = 5;
 //   - destination matches
 //   - flight number is NOT the user's own flight (excludeFlightNumber)
 //   - scheduled departure is at or after the user's scheduled departure
-//     (afterTs, unix seconds). Backup routes are only useful if the user can
-//     still physically board them; flights that already left aren't options
-//     for "what if my flight is cancelled" planning.
+//     (afterTs, unix seconds) — backup routes are only useful if the user can
+//     still physically board them
+//   - FR24 has an estimated departure for the flight; rows that are purely
+//     scheduled with no estimate are typically too far out to be actionable
+//   - duplicates across codeshares are collapsed by (schedDep) since two
+//     different real flights from the same origin to the same destination
+//     would never share a second-precise scheduled departure
 export async function getBackupRoutes(
   originIata: string,
   destinationIata: string,
@@ -18,6 +22,7 @@ export async function getBackupRoutes(
   afterTs: number,
 ): Promise<FR24Leg[]> {
   const matches: FR24Leg[] = [];
+  const seenSchedDep = new Set<number>();
   for (let page = 1; page <= MAX_BACKUP_PAGES; page++) {
     const legs = await getBoardPage(originIata, 'departures', page);
     if (legs.length === 0) break;
@@ -25,6 +30,9 @@ export async function getBackupRoutes(
       if (leg.destination !== destinationIata) continue;
       if (leg.flightNumber === excludeFlightNumber) continue;
       if (!leg.schedDep || leg.schedDep < afterTs) continue;
+      if (!leg.estDep) continue;
+      if (seenSchedDep.has(leg.schedDep)) continue;
+      seenSchedDep.add(leg.schedDep);
       matches.push({ ...leg, origin: originIata });
     }
   }

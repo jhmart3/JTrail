@@ -3,14 +3,15 @@
 
   import type { FR24Leg } from '$lib/server/utils/fr24';
 
-  // Render the scheduled departure in the origin airport's tz. All backup
-  // routes share the same origin (the user's departure airport), but we read
-  // tz off the leg so the column-format mirrors RotationLegRow.
+  // Render an FR24 unix-seconds timestamp as a 12-hour local time
+  // ("8:00 PM") in the given IANA tz. hour12 is forced rather than left to
+  // the browser locale so non-US locales still render in the same style.
   function fmtTime(ts: number | null, tz: string | null): string {
     if (!ts) return '--';
     return new Date(ts * 1000).toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      hour12: true,
       timeZone: tz ?? undefined,
     });
   }
@@ -57,7 +58,7 @@
             </div>
           </div>
           <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
-            {r.status}
+            Est. {fmtTime(r.estDep, r.originTz)}
           </span>
         </div>
       {/each}
