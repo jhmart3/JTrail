@@ -59,10 +59,19 @@
   // `readable()` at construction, capturing their values once — passing a
   // writable store instead lets us flip `enabled` after the upcoming-flights
   // list resolves and a selection lands.
+  //
+  // staleTime + gcTime are Infinity so the rotation never auto-refetches and
+  // never falls out of the cache. Combined with the localStorage persister
+  // wired up in +layout.svelte, this means: the first time the user opens
+  // the modal for a given flight we hit FR24; thereafter the cached response
+  // is served from memory or localStorage on every subsequent modal open
+  // (even across browser sessions and reloads), until the user explicitly
+  // hits the refresh button which calls $rotationQuery.refetch().
   const rotationOptions = writable({
     enabled: false,
-    refetchInterval: 120_000,
     refetchOnWindowFocus: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 
   $effect(() => {
@@ -150,8 +159,8 @@
         <div class="rounded-md border border-destructive/40 bg-destructive/10 p-4">
           <p class="text-sm font-medium">FlightRadar24 unreachable</p>
           <p class="text-xs text-muted-foreground mt-1">
-            We'll keep trying every 120 seconds. You can also close and reopen
-            the modal to retry immediately.
+            Hit the refresh button to try again, or close and reopen the
+            modal.
           </p>
         </div>
       {:else if rotation?.kind === 'tail_not_found'}
