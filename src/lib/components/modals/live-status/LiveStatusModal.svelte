@@ -27,9 +27,9 @@
     upcoming.find((f) => f.id === selectedId) ?? null,
   );
 
-  // tRPC input store for the rotation query. We always populate it with
-  // *something* so the type stays narrow; the query is gated by the `enabled`
-  // option below until we actually have a selected flight.
+  // tRPC input store for the rotation query. Always populated with something
+  // (so the type stays narrow); the query is gated by the reactive `enabled`
+  // flag below until we actually have a selected flight.
   const rotationInput = writable<{
     flightNumber: string;
     originIata: string;
@@ -53,12 +53,27 @@
     }
   });
 
-  const rotationQuery = trpc.liveStatus.getRotation.query(rotationInput, {
-    enabled: !!selected && open,
-    // Friendly to FR24: refresh every 120s while modal is open.
+  // Reactive options store. trpc-svelte-query wraps plain-object options in
+  // `readable()` at construction, capturing their values once — passing a
+  // writable store instead lets us flip `enabled` after the upcoming-flights
+  // list resolves and a selection lands.
+  const rotationOptions = writable({
+    enabled: false,
     refetchInterval: 120_000,
     refetchOnWindowFocus: false,
   });
+
+  $effect(() => {
+    rotationOptions.update((o) => ({
+      ...o,
+      enabled: !!selected && !!open,
+    }));
+  });
+
+  const rotationQuery = trpc.liveStatus.getRotation.query(
+    rotationInput,
+    rotationOptions,
+  );
 
   const rotation = $derived($rotationQuery.data);
   const isRotationLoading = $derived($rotationQuery.isLoading);
