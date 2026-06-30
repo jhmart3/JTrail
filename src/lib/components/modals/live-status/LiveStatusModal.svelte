@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RefreshCw } from '@o7/icon/lucide';
   import { writable } from 'svelte/store';
 
   import BackupRoutes from './BackupRoutes.svelte';
@@ -8,6 +9,7 @@
 
   import { Modal } from '$lib/components/ui/modal';
   import { trpc } from '$lib/trpc';
+  import { cn } from '$lib/utils';
 
   let { open = $bindable<boolean>() }: { open?: boolean } = $props();
 
@@ -78,6 +80,12 @@
   const rotation = $derived($rotationQuery.data);
   const isRotationLoading = $derived($rotationQuery.isLoading);
   const isRotationError = $derived($rotationQuery.isError);
+  // isFetching is true during both the initial load AND subsequent refetches,
+  // so we use it to disable/animate the refresh button regardless of whether
+  // we already have data on screen. tanstack-query keeps the existing `data`
+  // value in place while a refetch is in flight, so the rotation view stays
+  // visible — only the button itself reflects the pending state.
+  const isRotationFetching = $derived($rotationQuery.isFetching);
 </script>
 
 <Modal
@@ -86,12 +94,32 @@
   closeButton
 >
   <div class="space-y-4 p-2 sm:p-4">
-    <header>
-      <h2 class="text-2xl font-bold tracking-tight">Live status</h2>
-      <p class="text-sm text-muted-foreground">
-        Real-time rotation history for the aircraft assigned to your upcoming
-        flights.
-      </p>
+    <header class="flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight">Live status</h2>
+        <p class="text-sm text-muted-foreground">
+          Real-time rotation history for the aircraft assigned to your
+          upcoming flights.
+        </p>
+      </div>
+      <!-- Manual refresh. Disabled while a fetch is already in flight so
+           rapid clicks don't queue up extra calls to FR24. The icon spins
+           via Tailwind's animate-spin during fetch. tanstack-query keeps
+           the current rotation on screen until the new data arrives, so
+           the user never sees a blank/loading state mid-refresh. -->
+      <button
+        type="button"
+        aria-label="Refresh live status"
+        title="Refresh"
+        class="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-hover hover:text-foreground transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+        disabled={isRotationFetching || !rotation}
+        onclick={() => $rotationQuery.refetch()}
+      >
+        <RefreshCw
+          size="16"
+          class={cn(isRotationFetching && 'animate-spin')}
+        />
+      </button>
     </header>
 
     {#if $upcomingQuery.isLoading}
