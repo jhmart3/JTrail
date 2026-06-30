@@ -9,7 +9,7 @@
     PlaneLanding,
     X,
   } from '@o7/icon/lucide';
-  import { isBefore, isAfter } from 'date-fns';
+  import { isBefore, differenceInMinutes } from 'date-fns';
 
   import DeleteFlightModal from './DeleteFlightModal.svelte';
   import EmptyFlightsState from './EmptyFlightsState.svelte';
@@ -82,7 +82,13 @@
         const depDate = f.departure;
         const arrDate = f.arrival;
 
-        // Compare actual vs scheduled times
+        // Compare actual vs scheduled times. Tolerances:
+        //   Departure: late only (no early branch). If wheels-off is known,
+        //   compare it to scheduled gate departure with a 30-min window
+        //   (15-min on-time grace + ~15-min taxi). Otherwise compare gate
+        //   push-back to scheduled gate departure with a 15-min window.
+        //   Arrival: gate-vs-gate. Any amount before scheduled is early,
+        //   within 15 min after is on-time, > 15 min after is late.
         const depScheduled =
           f.raw.departureScheduled && f.from
             ? parseLocalizeISO(f.raw.departureScheduled, f.from.tz)
@@ -91,17 +97,29 @@
           f.raw.arrivalScheduled && f.to
             ? parseLocalizeISO(f.raw.arrivalScheduled, f.to.tz)
             : null;
+        const takeoffActual =
+          f.raw.takeoffActual && f.from
+            ? parseLocalizeISO(f.raw.takeoffActual, f.from.tz)
+            : null;
 
-        let depStatus: 'early' | 'late' | null = null;
-        if (depDate && depScheduled) {
-          if (isBefore(depDate, depScheduled)) depStatus = 'early';
-          else if (isAfter(depDate, depScheduled)) depStatus = 'late';
+        let depStatus: 'late' | null = null;
+        if (depScheduled) {
+          if (takeoffActual) {
+            if (differenceInMinutes(takeoffActual, depScheduled) > 30) {
+              depStatus = 'late';
+            }
+          } else if (depDate) {
+            if (differenceInMinutes(depDate, depScheduled) > 15) {
+              depStatus = 'late';
+            }
+          }
         }
 
         let arrStatus: 'early' | 'late' | null = null;
         if (arrDate && arrScheduled) {
           if (isBefore(arrDate, arrScheduled)) arrStatus = 'early';
-          else if (isAfter(arrDate, arrScheduled)) arrStatus = 'late';
+          else if (differenceInMinutes(arrDate, arrScheduled) > 15)
+            arrStatus = 'late';
         }
 
         return {
@@ -559,7 +577,6 @@
         airportLabel={flight.from?.iata}
         side="right"
         class={cn('text-sm', {
-          'text-green-600 dark:text-green-400': flight.depStatus === 'early',
           'text-red-600 dark:text-red-400': flight.depStatus === 'late',
         })}
       />
