@@ -76,25 +76,11 @@
       formValues.from?.tz,
     ),
   );
-  const takeoffScheduled = $derived.by(() =>
-    getDateTime(
-      formValues.takeoffScheduled,
-      formValues.takeoffScheduledTime,
-      formValues.from?.tz,
-    ),
-  );
   const takeoffActual = $derived.by(() =>
     getDateTime(
       formValues.takeoffActual,
       formValues.takeoffActualTime,
       formValues.from?.tz,
-    ),
-  );
-  const landingScheduled = $derived.by(() =>
-    getDateTime(
-      formValues.landingScheduled,
-      formValues.landingScheduledTime,
-      formValues.to?.tz,
     ),
   );
   const landingActual = $derived.by(() =>
@@ -115,20 +101,11 @@
     ),
   );
 
-  const taxiOutScheduled = $derived.by(() =>
-    calcDuration(gateDepartureScheduled, takeoffScheduled),
-  );
   const taxiOutActual = $derived.by(() =>
     calcDuration(gateDepartureActual, takeoffActual),
   );
-  const airTimeScheduled = $derived.by(() =>
-    calcDuration(takeoffScheduled, landingScheduled),
-  );
   const airTimeActual = $derived.by(() =>
     calcDuration(takeoffActual, landingActual),
-  );
-  const taxiInScheduled = $derived.by(() =>
-    calcDuration(landingScheduled, gateArrivalScheduled),
   );
   const taxiInActual = $derived.by(() =>
     calcDuration(landingActual, gateArrivalActual),
@@ -183,9 +160,7 @@
         <div class="flex h-8 items-center">
           <Label class="text-muted-foreground">Taxi out</Label>
         </div>
-        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-          {formatDuration(taxiOutScheduled)}
-        </div>
+        <div></div>
         <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
           {formatDuration(taxiOutActual)}
         </div>
@@ -194,16 +169,7 @@
         <div class="flex h-8 items-center">
           <Label>Takeoff</Label>
         </div>
-        <TimetableDateTimeCell
-          {form}
-          label="Takeoff"
-          dateField="takeoffScheduled"
-          timeField="takeoffScheduledTime"
-          timezone={$formData.from?.tz}
-          baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.departureScheduled}
-          defaultTime={$formData.departureScheduledTime}
-        />
+        <div></div>
         <TimetableDateTimeCell
           {form}
           label="Takeoff"
@@ -211,9 +177,8 @@
           timeField="takeoffActualTime"
           timezone={$formData.from?.tz}
           baseDateTime={gateDepartureActual}
-          compareDateTime={takeoffScheduled}
-          defaultDate={$formData.departure}
-          defaultTime={$formData.departureTime}
+          defaultDate={$formData.departureScheduled}
+          defaultTime={$formData.departureScheduledTime}
         />
       </div>
       <div
@@ -222,16 +187,7 @@
         <div class="flex h-8 items-center">
           <Label>Landing</Label>
         </div>
-        <TimetableDateTimeCell
-          {form}
-          label="Landing"
-          dateField="landingScheduled"
-          timeField="landingScheduledTime"
-          timezone={$formData.to?.tz}
-          baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.arrivalScheduled}
-          defaultTime={$formData.arrivalScheduledTime}
-        />
+        <div></div>
         <TimetableDateTimeCell
           {form}
           label="Landing"
@@ -239,18 +195,15 @@
           timeField="landingActualTime"
           timezone={$formData.to?.tz}
           baseDateTime={gateDepartureActual}
-          compareDateTime={landingScheduled}
-          defaultDate={$formData.arrival}
-          defaultTime={$formData.arrivalTime}
+          defaultDate={$formData.arrivalScheduled}
+          defaultTime={$formData.arrivalScheduledTime}
         />
       </div>
       <div class="grid grid-cols-[1.2fr_1fr_1fr] items-start gap-3">
         <div class="flex h-8 items-center">
           <Label class="text-muted-foreground">Taxi in</Label>
         </div>
-        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-          {formatDuration(taxiInScheduled)}
-        </div>
+        <div></div>
         <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
           {formatDuration(taxiInActual)}
         </div>
@@ -287,9 +240,7 @@
         <div class="flex h-8 items-center">
           <Label class="text-muted-foreground">Air time</Label>
         </div>
-        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-          {formatDuration(airTimeScheduled)}
-        </div>
+        <div></div>
         <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
           {formatDuration(airTimeActual)}
         </div>
@@ -352,35 +303,24 @@
       {/if}
     </div>
 
-    <!-- Taxi out -->
-    <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
-      <div class="flex h-8 items-center">
-        <Label class="text-muted-foreground">Taxi out</Label>
+    <!-- Taxi out (only on Actual tab — no scheduled wheels data) -->
+    {#if mobileTab === 'actual'}
+      <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
+        <div class="flex h-8 items-center">
+          <Label class="text-muted-foreground">Taxi out</Label>
+        </div>
+        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
+          {formatDuration(taxiOutActual)}
+        </div>
       </div>
-      <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-        {formatDuration(
-          mobileTab === 'scheduled' ? taxiOutScheduled : taxiOutActual,
-        )}
-      </div>
-    </div>
+    {/if}
 
-    <!-- Takeoff -->
-    <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
-      <div class="flex h-8 items-center">
-        <Label>Takeoff</Label>
-      </div>
-      {#if mobileTab === 'scheduled'}
-        <TimetableDateTimeCell
-          {form}
-          label="Takeoff"
-          dateField="takeoffScheduled"
-          timeField="takeoffScheduledTime"
-          timezone={$formData.from?.tz}
-          baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.departureScheduled}
-          defaultTime={$formData.departureScheduledTime}
-        />
-      {:else}
+    <!-- Takeoff (only on Actual tab — no scheduled wheels data) -->
+    {#if mobileTab === 'actual'}
+      <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
+        <div class="flex h-8 items-center">
+          <Label>Takeoff</Label>
+        </div>
         <TimetableDateTimeCell
           {form}
           label="Takeoff"
@@ -388,32 +328,20 @@
           timeField="takeoffActualTime"
           timezone={$formData.from?.tz}
           baseDateTime={gateDepartureActual}
-          compareDateTime={takeoffScheduled}
-          defaultDate={$formData.departure}
-          defaultTime={$formData.departureTime}
+          defaultDate={$formData.departureScheduled}
+          defaultTime={$formData.departureScheduledTime}
         />
-      {/if}
-    </div>
-
-    <!-- Landing -->
-    <div
-      class="grid grid-cols-[1fr_1fr] items-start gap-3 pt-3 mt-3 border-t border-border/60"
-    >
-      <div class="flex h-8 items-center">
-        <Label>Landing</Label>
       </div>
-      {#if mobileTab === 'scheduled'}
-        <TimetableDateTimeCell
-          {form}
-          label="Landing"
-          dateField="landingScheduled"
-          timeField="landingScheduledTime"
-          timezone={$formData.to?.tz}
-          baseDateTime={gateDepartureScheduled}
-          defaultDate={$formData.arrivalScheduled}
-          defaultTime={$formData.arrivalScheduledTime}
-        />
-      {:else}
+    {/if}
+
+    <!-- Landing (only on Actual tab — no scheduled wheels data) -->
+    {#if mobileTab === 'actual'}
+      <div
+        class="grid grid-cols-[1fr_1fr] items-start gap-3 pt-3 mt-3 border-t border-border/60"
+      >
+        <div class="flex h-8 items-center">
+          <Label>Landing</Label>
+        </div>
         <TimetableDateTimeCell
           {form}
           label="Landing"
@@ -421,24 +349,23 @@
           timeField="landingActualTime"
           timezone={$formData.to?.tz}
           baseDateTime={gateDepartureActual}
-          compareDateTime={landingScheduled}
-          defaultDate={$formData.arrival}
-          defaultTime={$formData.arrivalTime}
+          defaultDate={$formData.arrivalScheduled}
+          defaultTime={$formData.arrivalScheduledTime}
         />
-      {/if}
-    </div>
+      </div>
+    {/if}
 
-    <!-- Taxi in -->
-    <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
-      <div class="flex h-8 items-center">
-        <Label class="text-muted-foreground">Taxi in</Label>
+    <!-- Taxi in (only on Actual tab — no scheduled wheels data) -->
+    {#if mobileTab === 'actual'}
+      <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
+        <div class="flex h-8 items-center">
+          <Label class="text-muted-foreground">Taxi in</Label>
+        </div>
+        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
+          {formatDuration(taxiInActual)}
+        </div>
       </div>
-      <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-        {formatDuration(
-          mobileTab === 'scheduled' ? taxiInScheduled : taxiInActual,
-        )}
-      </div>
-    </div>
+    {/if}
 
     <!-- Gate arrival -->
     <div class="grid grid-cols-[1fr_1fr] items-start gap-3">
@@ -471,19 +398,19 @@
       {/if}
     </div>
 
-    <!-- Air time -->
-    <div
-      class="grid grid-cols-[1fr_1fr] items-center gap-3 mt-3 pt-3 border-t border-border/60"
-    >
-      <div class="flex h-8 items-center">
-        <Label class="text-muted-foreground">Air time</Label>
+    <!-- Air time (only on Actual tab — no scheduled wheels data) -->
+    {#if mobileTab === 'actual'}
+      <div
+        class="grid grid-cols-[1fr_1fr] items-center gap-3 mt-3 pt-3 border-t border-border/60"
+      >
+        <div class="flex h-8 items-center">
+          <Label class="text-muted-foreground">Air time</Label>
+        </div>
+        <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
+          {formatDuration(airTimeActual)}
+        </div>
       </div>
-      <div class="flex h-8 items-center px-2 text-sm text-muted-foreground">
-        {formatDuration(
-          mobileTab === 'scheduled' ? airTimeScheduled : airTimeActual,
-        )}
-      </div>
-    </div>
+    {/if}
 
     <!-- Total time -->
     <div class="grid grid-cols-[1fr_1fr] items-center gap-3">
