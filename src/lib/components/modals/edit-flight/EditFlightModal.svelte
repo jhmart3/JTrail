@@ -194,6 +194,7 @@
           if (form.message.type === 'success') {
             trpc.flight.list.utils.invalidate();
             trpc.flightTrack.list.utils.invalidate();
+            trpc.liveStatus.listUpcoming.utils.invalidate();
             toast.success(form.message.text);
             open = false;
             return;

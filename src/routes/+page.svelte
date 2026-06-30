@@ -109,6 +109,7 @@
     onSuccess: () => {
       trpc.flight.list.utils.invalidate();
       trpc.flightTrack.list.utils.invalidate();
+      trpc.liveStatus.listUpcoming.utils.invalidate();
     },
   };
   const deleteFlightMutation = trpc.flight.delete.mutation(invalidator);

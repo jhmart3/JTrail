@@ -99,6 +99,7 @@
     await Promise.all([
       trpc.flight.list.utils.invalidate(),
       trpc.flightTrack.list.utils.invalidate(),
+      trpc.liveStatus.listUpcoming.utils.invalidate(),
     ]);
     flightAddedState.added = true;
   };
