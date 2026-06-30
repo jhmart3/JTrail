@@ -1,10 +1,22 @@
+<script lang="ts" module>
+  // Visual classification of a leg row, controls the left-border color.
+  //   - 'mine'      → the user's own flight, accent blue
+  //   - 'active'    → the rotation leg currently in motion or most recently
+  //                   landed; neutral grey to draw the eye without competing
+  //                   with 'mine'
+  //   - 'landed'    → completed past legs, faint emerald
+  //   - 'scheduled' → not yet started, no border
+  export type LegState = 'mine' | 'active' | 'landed' | 'scheduled';
+</script>
+
 <script lang="ts">
   import type { FR24Leg } from '$lib/server/utils/fr24';
+  import { cn } from '$lib/utils';
 
   let {
     leg,
-    highlighted = false,
-  }: { leg: FR24Leg; highlighted?: boolean } = $props();
+    state,
+  }: { leg: FR24Leg; state: LegState } = $props();
 
   // Format an FR24 unix-seconds timestamp as a short local time ("11:55 AM")
   // in the given IANA tz. Falls back to the user's local tz when tz is null
@@ -62,11 +74,13 @@
 </script>
 
 <div
-  class="flex items-stretch gap-3 py-2"
-  class:border-l-4={highlighted}
-  class:border-primary={highlighted}
-  class:pl-3={highlighted}
-  class:font-semibold={highlighted}
+  class={cn(
+    'flex items-stretch gap-3 py-2',
+    state === 'mine' && 'border-l-4 border-primary pl-3 font-semibold',
+    state === 'active' &&
+      'border-l-4 border-zinc-400 dark:border-zinc-500 pl-3',
+    state === 'landed' && 'border-l-4 border-emerald-500/50 pl-3',
+  )}
 >
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-2 text-sm">
@@ -98,7 +112,20 @@
       >
         {summary.label}
       </span>
-    {:else}
+    {/if}
+    <!-- Second line: actual or estimated landing time, in destination tz.
+         Mirrors what FR24 surfaces as the leg's headline status string, but
+         localized to the airport the plane is heading to so the user can map
+         it against their own arrival expectations. -->
+    {#if leg.realArr}
+      <span class="text-xs text-muted-foreground">
+        Landed {fmtTime(leg.realArr, leg.destinationTz)}
+      </span>
+    {:else if leg.estArr}
+      <span class="text-xs text-muted-foreground">
+        Est. {fmtTime(leg.estArr, leg.destinationTz)}
+      </span>
+    {:else if !summary}
       <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
         {leg.status}
       </span>
