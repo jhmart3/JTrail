@@ -5,6 +5,7 @@
     Grip,
     LayoutList,
     Map,
+    Radio,
     Settings,
   } from '@o7/icon/lucide';
 
@@ -33,6 +34,14 @@
     testId: 'list-flights-button',
     onClick: () => {
       openModalsState.listFlights = true;
+    },
+  };
+  const liveStatusItem = {
+    label: 'Live status',
+    icon: Radio,
+    testId: 'live-status-button',
+    onClick: () => {
+      openModalsState.liveStatus = true;
     },
   };
   const flightsStatisticsItem = {
@@ -81,6 +90,7 @@
       <DockTooltipItem item={addFlightItem} />
       {#if page.url.pathname === '/'}
         <DockTooltipItem item={listFlightsItem} />
+        <DockTooltipItem item={liveStatusItem} />
         <DockTooltipItem item={flightsStatisticsItem} />
       {/if}
       <DockDropdownItem items={OTHER} label="More">

@@ -45,6 +45,7 @@ export type OpenModalsState = {
   addFlight: boolean;
   listFlights: boolean;
   statistics: boolean;
+  liveStatus: boolean;
   settings: boolean;
   settingsTab: SettingsTabId;
 };
@@ -53,6 +54,7 @@ export const openModalsState = $state<OpenModalsState>({
   addFlight: false,
   listFlights: false,
   statistics: false,
+  liveStatus: false,
   settings: false,
   settingsTab: 'general',
 });

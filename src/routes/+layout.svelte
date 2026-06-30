@@ -11,6 +11,7 @@
   import { ConfirmWrapper, ScreenSize } from '$lib/components/helpers';
   import {
     AddFlightModal,
+    LiveStatusModal,
     NewVersionAnnouncement,
     SettingsModal,
   } from '$lib/components/modals';
@@ -45,6 +46,7 @@
     <TooltipProvider>
       <SettingsModal bind:open={openModalsState.settings} />
       <AddFlightModal bind:open={openModalsState.addFlight} />
+      <LiveStatusModal bind:open={openModalsState.liveStatus} />
       <TimeDisplayHost />
 
       <main class="h-full" data-vaul-drawer-wrapper>
