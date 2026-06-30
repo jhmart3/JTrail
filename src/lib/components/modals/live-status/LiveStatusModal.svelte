@@ -59,9 +59,14 @@
   // `readable()` at construction, capturing their values once — passing a
   // writable store instead lets us flip `enabled` after the upcoming-flights
   // list resolves and a selection lands.
+  //
+  // No refetchInterval here: the rotation fetches once when the modal opens
+  // and a selection is made, and again whenever the user hits the refresh
+  // button. Auto-polling was removed to be friendlier to FR24's rate limits
+  // and to avoid burning calls in the background when the modal is open but
+  // the user isn't actively looking at it.
   const rotationOptions = writable({
     enabled: false,
-    refetchInterval: 120_000,
     refetchOnWindowFocus: false,
   });
 
@@ -150,8 +155,8 @@
         <div class="rounded-md border border-destructive/40 bg-destructive/10 p-4">
           <p class="text-sm font-medium">FlightRadar24 unreachable</p>
           <p class="text-xs text-muted-foreground mt-1">
-            We'll keep trying every 120 seconds. You can also close and reopen
-            the modal to retry immediately.
+            Hit the refresh button to try again, or close and reopen the
+            modal.
           </p>
         </div>
       {:else if rotation?.kind === 'tail_not_found'}
