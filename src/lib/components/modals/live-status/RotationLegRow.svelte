@@ -68,7 +68,7 @@
       const diffMin = Math.round((c.actual - c.scheduled) / 60);
       const prefix = c.kind === 'est' ? 'Est. ' : '';
       if (Math.abs(diffMin) <= ON_TIME_TOLERANCE_MIN) {
-        return { label: `${prefix}on time`, tone: 'on-time' };
+        return { label: `${prefix}On Time`, tone: 'on-time' };
       }
       if (diffMin > 0) {
         return { label: `${prefix}${fmtHM(diffMin)} Late`, tone: 'late' };
@@ -104,17 +104,9 @@
       </span>
     </div>
     <div class="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-      {#if leg.realDep}
-        <span>Dep. {fmtTime(leg.realDep, leg.originTz)}</span>
-      {:else}
-        <span>Sch {fmtTime(leg.schedDep, leg.originTz)}</span>
-      {/if}
+      <span>Sch {fmtTime(leg.schedDep, leg.originTz)}</span>
       <span>→</span>
-      {#if leg.realArr}
-        <span>Arr {fmtTime(leg.realArr, leg.destinationTz)}</span>
-      {:else}
-        <span>Sch {fmtTime(leg.schedArr, leg.destinationTz)}</span>
-      {/if}
+      <span>Sch {fmtTime(leg.schedArr, leg.destinationTz)}</span>
     </div>
   </div>
   <div class="flex flex-col items-end justify-center text-right shrink-0">
@@ -129,27 +121,19 @@
         {summary.label}
       </span>
     {/if}
-    <!-- Second line: context for the delay summary.
-         - Completed legs (realArr) show the original *scheduled* arrival
-           since the actual is already rendered under the airport codes
-           above. Avoids duplicating "Landed 3:24 / Arr 3:24".
-         - In-air legs without realArr but with an FR24 estimate show
-           "Est. h:mm" — the projected landing time.
-         - Upcoming legs with neither real nor estimated arrival fall back
-           to the scheduled time with a "Sch." prefix; rare since FR24
-           typically populates an estimate once the flight is on its
-           board, but worth being robust to. -->
+    <!-- Second line: the *actual* arrival outcome (or best estimate) in the
+         destination tz. Scheduled times live under the airport codes above,
+         so this line is always the live signal.
+         - Completed leg (realArr) → "Arr h:mm"
+         - In-air leg (estArr only) → "Est. h:mm"
+         - Neither known → fall through to FR24 status text -->
     {#if leg.realArr}
       <span class="text-xs text-muted-foreground">
-        Scheduled {fmtTime(leg.schedArr, leg.destinationTz)}
+        Arr {fmtTime(leg.realArr, leg.destinationTz)}
       </span>
     {:else if leg.estArr}
       <span class="text-xs text-muted-foreground">
         Est. {fmtTime(leg.estArr, leg.destinationTz)}
-      </span>
-    {:else if leg.schedArr}
-      <span class="text-xs text-muted-foreground">
-        Sch. {fmtTime(leg.schedArr, leg.destinationTz)}
       </span>
     {:else if !summary}
       <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
