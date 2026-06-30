@@ -37,6 +37,13 @@
     return `${h}:${mm}`;
   }
 
+  // ±5 min tolerance for "on time". FR24's data is timestamped to the second
+  // but the underlying source is minute-precise; anything inside 5 minutes is
+  // either schedule rounding or normal taxi-time variance, not a real signal
+  // the passenger needs to act on. The list view uses 15 min (DOT A15) for
+  // historical reporting — different question, different threshold.
+  const ON_TIME_TOLERANCE_MIN = 5;
+
   // Decide the delay summary for this leg.
   // Priority order matters: arrival (real, then estimated) wins over departure
   // (real, then estimated). A flight that pushed back 23 min late but is
@@ -60,7 +67,7 @@
       if (!c.scheduled || !c.actual) continue;
       const diffMin = Math.round((c.actual - c.scheduled) / 60);
       const prefix = c.kind === 'est' ? 'Est. ' : '';
-      if (diffMin >= -1 && diffMin <= 1) {
+      if (Math.abs(diffMin) <= ON_TIME_TOLERANCE_MIN) {
         return { label: `${prefix}on time`, tone: 'on-time' };
       }
       if (diffMin > 0) {
@@ -122,17 +129,27 @@
         {summary.label}
       </span>
     {/if}
-    <!-- Second line: actual or estimated landing time, in destination tz.
-         Mirrors what FR24 surfaces as the leg's headline status string, but
-         localized to the airport the plane is heading to so the user can map
-         it against their own arrival expectations. -->
+    <!-- Second line: context for the delay summary.
+         - Completed legs (realArr) show the original *scheduled* arrival
+           since the actual is already rendered under the airport codes
+           above. Avoids duplicating "Landed 3:24 / Arr 3:24".
+         - In-air legs without realArr but with an FR24 estimate show
+           "Est. h:mm" — the projected landing time.
+         - Upcoming legs with neither real nor estimated arrival fall back
+           to the scheduled time with a "Sch." prefix; rare since FR24
+           typically populates an estimate once the flight is on its
+           board, but worth being robust to. -->
     {#if leg.realArr}
       <span class="text-xs text-muted-foreground">
-        Landed {fmtTime(leg.realArr, leg.destinationTz)}
+        Scheduled {fmtTime(leg.schedArr, leg.destinationTz)}
       </span>
     {:else if leg.estArr}
       <span class="text-xs text-muted-foreground">
         Est. {fmtTime(leg.estArr, leg.destinationTz)}
+      </span>
+    {:else if leg.schedArr}
+      <span class="text-xs text-muted-foreground">
+        Sch. {fmtTime(leg.schedArr, leg.destinationTz)}
       </span>
     {:else if !summary}
       <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
