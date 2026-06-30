@@ -12,24 +12,19 @@ const MAX_BACKUP_PAGES = 5;
 //     still physically board them
 //   - FR24 has an estimated departure for the flight; rows that are purely
 //     scheduled with no estimate are typically too far out to be actionable
-//   - same marketing carrier as the user's flight, by IATA prefix. The
-//     first two characters of the flight number identify the marketing
-//     carrier the ticket is sold under (AA = American, UA = United, etc).
-//     Regional operators (Envoy / SkyWest / Republic / PSA) all fly under
-//     the parent prefix when ticketed as American Eagle / United Express /
-//     Delta Connection, so 2-char prefix matching catches the same-network
-//     rebooking case without any per-carrier mapping
 //   - duplicates across codeshares are collapsed by (schedDep) since two
 //     different real flights from the same origin to the same destination
 //     would never share a second-precise scheduled departure
+//
+// Carrier filtering is intentionally not done here — the client filters by
+// IATA prefix based on a user-facing toggle. Returning the full eligible set
+// avoids a second round-trip when the toggle flips.
 export async function getBackupRoutes(
   originIata: string,
   destinationIata: string,
   excludeFlightNumber: string,
   afterTs: number,
 ): Promise<FR24Leg[]> {
-  const carrierPrefix = excludeFlightNumber.slice(0, 2).toUpperCase();
-
   const matches: FR24Leg[] = [];
   const seenSchedDep = new Set<number>();
   for (let page = 1; page <= MAX_BACKUP_PAGES; page++) {
@@ -40,12 +35,6 @@ export async function getBackupRoutes(
       if (leg.flightNumber === excludeFlightNumber) continue;
       if (!leg.schedDep || leg.schedDep < afterTs) continue;
       if (!leg.estDep) continue;
-      if (
-        carrierPrefix &&
-        leg.flightNumber.slice(0, 2).toUpperCase() !== carrierPrefix
-      ) {
-        continue;
-      }
       if (seenSchedDep.has(leg.schedDep)) continue;
       seenSchedDep.add(leg.schedDep);
       matches.push({ ...leg, origin: originIata });

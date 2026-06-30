@@ -2,6 +2,7 @@
   import { ChevronDown, ChevronRight } from '@o7/icon/lucide';
 
   import type { FR24Leg } from '$lib/server/utils/fr24';
+  import { Switch } from '$lib/components/ui/switch';
 
   // Render an FR24 unix-seconds timestamp as a 12-hour local time
   // ("8:00 PM") in the given IANA tz. hour12 is forced rather than left to
@@ -49,9 +50,30 @@
   let {
     routes,
     userSchedDep,
-  }: { routes: FR24Leg[]; userSchedDep: number | null } = $props();
+    userFlightNumber,
+  }: {
+    routes: FR24Leg[];
+    userSchedDep: number | null;
+    userFlightNumber: string;
+  } = $props();
 
   let expanded = $state(false);
+  // Default behavior: only show same-carrier alternatives (the realistic
+  // rebooking case). Toggling the switch widens the list to every eligible
+  // route across all carriers — useful if the user is willing to pay for
+  // a competitor or hold a credit.
+  let allCarriers = $state(false);
+
+  const carrierPrefix = $derived(
+    userFlightNumber.slice(0, 2).toUpperCase(),
+  );
+
+  const visibleRoutes = $derived.by(() => {
+    if (allCarriers || !carrierPrefix) return routes;
+    return routes.filter(
+      (r) => r.flightNumber.slice(0, 2).toUpperCase() === carrierPrefix,
+    );
+  });
 </script>
 
 <section class="rounded-lg border border-border bg-card/40">
@@ -63,7 +85,7 @@
     <span class="text-sm font-semibold">
       Backup routes
       <span class="text-muted-foreground font-normal">
-        ({routes.length})
+        ({visibleRoutes.length})
       </span>
     </span>
     {#if expanded}
@@ -74,8 +96,22 @@
   </button>
 
   {#if expanded}
+    <div
+      class="flex items-center justify-between border-t border-border px-3 py-2"
+    >
+      <span class="text-xs text-muted-foreground">
+        All carriers
+      </span>
+      <Switch bind:checked={allCarriers} />
+    </div>
     <div class="border-t border-border divide-y divide-border">
-      {#each routes as r, i (i)}
+      {#if visibleRoutes.length === 0}
+        <p class="p-3 text-xs text-muted-foreground">
+          No same-carrier alternatives. Toggle "All carriers" above to see
+          options from other airlines.
+        </p>
+      {/if}
+      {#each visibleRoutes as r, i (i)}
         {@const offset = daysOffset(r.schedDep, userSchedDep, r.originTz)}
         <div
           class="flex items-center justify-between gap-3 p-3 text-sm"

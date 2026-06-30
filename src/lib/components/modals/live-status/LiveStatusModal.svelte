@@ -145,6 +145,7 @@
           <BackupRoutes
             routes={rotation.backupRoutes}
             userSchedDep={rotation.yourLeg.schedDep}
+            userFlightNumber={rotation.yourLeg.flightNumber}
           />
         {/if}
         <footer class="text-xs text-muted-foreground text-right">
