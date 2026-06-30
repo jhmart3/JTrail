@@ -4,7 +4,7 @@
   type Flight = {
     id: number;
     flightNumber: string;
-    from: { iata: string };
+    from: { iata: string; tz: string };
     to: { iata: string };
     departureScheduled: string;
   };
@@ -19,10 +19,14 @@
     onSelect: (id: number) => void;
   } = $props();
 
-  function fmtDay(iso: string) {
+  // Render the pill's time in the *origin airport's* local tz, not the
+  // browser's. A 5pm-Tokyo flight should read 5pm on the pill regardless of
+  // where the user is sitting.
+  function fmtTime(iso: string, tz: string) {
     return new Date(iso).toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: tz,
     });
   }
 </script>
@@ -43,7 +47,7 @@
       <span class="mx-1 opacity-60">·</span>
       <span>{f.from.iata}→{f.to.iata}</span>
       <span class="mx-1 opacity-60">·</span>
-      <span>{fmtDay(f.departureScheduled)}</span>
+      <span>{fmtTime(f.departureScheduled, f.from.tz)}</span>
     </button>
   {/each}
 </div>

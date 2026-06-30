@@ -3,11 +3,15 @@
 
   import type { FR24Leg } from '$lib/server/utils/fr24';
 
-  function fmtTime(ts: number | null | undefined): string {
+  // Render the scheduled departure in the origin airport's tz. All backup
+  // routes share the same origin (the user's departure airport), but we read
+  // tz off the leg so the column-format mirrors RotationLegRow.
+  function fmtTime(ts: number | null, tz: string | null): string {
     if (!ts) return '--';
     return new Date(ts * 1000).toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: tz ?? undefined,
     });
   }
 
@@ -49,7 +53,7 @@
               </span>
             </div>
             <div class="text-xs text-muted-foreground">
-              Departs {fmtTime(r.schedDep)}
+              Departs {fmtTime(r.schedDep, r.originTz)}
             </div>
           </div>
           <span class="text-xs text-muted-foreground truncate max-w-[12rem]">
