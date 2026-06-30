@@ -37,12 +37,12 @@
     return `${h}:${mm}`;
   }
 
-  // ±5 min tolerance for "on time". FR24's data is timestamped to the second
-  // but the underlying source is minute-precise; anything inside 5 minutes is
-  // either schedule rounding or normal taxi-time variance, not a real signal
-  // the passenger needs to act on. The list view uses 15 min (DOT A15) for
-  // historical reporting — different question, different threshold.
-  const ON_TIME_TOLERANCE_MIN = 5;
+  // ±10 min tolerance for "on time". FR24's data is timestamped to the second
+  // but the underlying source is minute-precise; sub-10-min deltas are either
+  // schedule rounding or normal turn/taxi variance that's not actionable for a
+  // passenger. The list view uses 15 min (DOT A15) for historical reporting —
+  // different question, slightly looser threshold.
+  const ON_TIME_TOLERANCE_MIN = 10;
 
   // Decide the delay summary for this leg.
   // Priority order matters: arrival (real, then estimated) wins over departure
