@@ -5,7 +5,7 @@ import { authedProcedure, router } from '$lib/server/trpc';
 import { db } from '$lib/db';
 import {
   findAssignedTail,
-  walkTailHistory,
+  getTailHistoryToday,
   getBackupRoutes,
   type FR24Leg,
 } from '$lib/server/utils/fr24';
@@ -128,9 +128,8 @@ export const liveStatusRouter = router({
 
       const priorLegs =
         yourLeg.tail && yourLeg.schedDep
-          ? await walkTailHistory(
+          ? await getTailHistoryToday(
               yourLeg.tail,
-              originIata,
               yourLeg.schedDep,
               input.originTz,
             )
