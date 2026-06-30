@@ -142,7 +142,10 @@
           priorLegs={rotation.priorLegs}
         />
         {#if rotation.backupRoutes.length > 0}
-          <BackupRoutes routes={rotation.backupRoutes} />
+          <BackupRoutes
+            routes={rotation.backupRoutes}
+            userSchedDep={rotation.yourLeg.schedDep}
+          />
         {/if}
         <footer class="text-xs text-muted-foreground text-right">
           Updated {new Date(rotation.fetchedAt).toLocaleTimeString(undefined, {
