@@ -108,13 +108,11 @@
     {:else if upcoming.length === 0}
       <EmptyState />
     {:else}
-      {#if upcoming.length > 1}
-        <FlightSelector
-          flights={upcoming}
-          {selectedId}
-          onSelect={(id) => (selectedId = id)}
-        />
-      {/if}
+      <FlightSelector
+        flights={upcoming}
+        {selectedId}
+        onSelect={(id) => (selectedId = id)}
+      />
 
       {#if isRotationLoading}
         <p class="text-sm text-muted-foreground py-8 text-center">
@@ -144,7 +142,11 @@
           priorLegs={rotation.priorLegs}
         />
         {#if rotation.backupRoutes.length > 0}
-          <BackupRoutes routes={rotation.backupRoutes} />
+          <BackupRoutes
+            routes={rotation.backupRoutes}
+            userSchedDep={rotation.yourLeg.schedDep}
+            userFlightNumber={rotation.yourLeg.flightNumber}
+          />
         {/if}
         <footer class="text-xs text-muted-foreground text-right">
           Updated {new Date(rotation.fetchedAt).toLocaleTimeString(undefined, {

@@ -5,7 +5,7 @@ import { authedProcedure, router } from '$lib/server/trpc';
 import { db } from '$lib/db';
 import {
   findAssignedTail,
-  walkTailHistory,
+  getTailHistoryToday,
   getBackupRoutes,
   type FR24Leg,
 } from '$lib/server/utils/fr24';
@@ -128,15 +128,25 @@ export const liveStatusRouter = router({
 
       const priorLegs =
         yourLeg.tail && yourLeg.schedDep
-          ? await walkTailHistory(
+          ? await getTailHistoryToday(
               yourLeg.tail,
-              originIata,
               yourLeg.schedDep,
               input.originTz,
             )
           : [];
 
-      const backupRoutes = await getBackupRoutes(originIata, destIata, cleaned);
+      // Backup routes filter out flights scheduled to depart before the user's
+      // own scheduled departure. The use case is "what if my flight is
+      // cancelled or I miss it" — only later-departing alternatives are
+      // actually catchable. Fall back to "now" if for some reason yourLeg
+      // doesn't carry a scheduled departure timestamp.
+      const backupCutoffTs = yourLeg.schedDep ?? Math.floor(Date.now() / 1000);
+      const backupRoutes = await getBackupRoutes(
+        originIata,
+        destIata,
+        cleaned,
+        backupCutoffTs,
+      );
 
       // Look up the IANA tz for every airport that appears in any leg. FR24
       // sometimes includes tz info in the response but its format is unstable;

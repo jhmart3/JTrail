@@ -19,13 +19,14 @@
     onSelect: (id: number) => void;
   } = $props();
 
-  // Render the pill's time in the *origin airport's* local tz, not the
-  // browser's. A 5pm-Tokyo flight should read 5pm on the pill regardless of
-  // where the user is sitting.
+  // Render the pill's time in the *origin airport's* local tz, in 12-hour
+  // format. A 5pm-Tokyo flight should read "5:00 PM" on the pill regardless
+  // of where the user is sitting or which locale their browser uses.
   function fmtTime(iso: string, tz: string) {
     return new Date(iso).toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      hour12: true,
       timeZone: tz,
     });
   }

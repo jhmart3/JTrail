@@ -17,14 +17,16 @@
     state,
   }: { leg: FR24Leg; state: LegState } = $props();
 
-  // Format an FR24 unix-seconds timestamp as a short local time ("11:55 AM")
-  // in the given IANA tz. Falls back to the user's local tz when tz is null
-  // (rare — only if the JTrail airports table doesn't know this IATA).
+  // Format an FR24 unix-seconds timestamp as a short 12-hour local time
+  // ("11:55 AM") in the given IANA tz. hour12 is forced so non-US locales
+  // don't render as 24-hour. Falls back to the user's local tz when tz is
+  // null (rare — only if the JTrail airports table doesn't know this IATA).
   function fmtTime(ts: number | null, tz: string | null): string {
     if (!ts) return '--';
     return new Date(ts * 1000).toLocaleTimeString(undefined, {
       hour: 'numeric',
       minute: '2-digit',
+      hour12: true,
       timeZone: tz ?? undefined,
     });
   }
