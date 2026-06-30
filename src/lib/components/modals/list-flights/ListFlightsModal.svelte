@@ -103,23 +103,35 @@
             : null;
 
         let depStatus: 'late' | null = null;
+        let depDelayMinutes: number | null = null;
         if (depScheduled) {
           if (takeoffActual) {
-            if (differenceInMinutes(takeoffActual, depScheduled) > 30) {
+            const diff = differenceInMinutes(takeoffActual, depScheduled);
+            if (diff > 30) {
               depStatus = 'late';
+              depDelayMinutes = diff;
             }
           } else if (depDate) {
-            if (differenceInMinutes(depDate, depScheduled) > 15) {
+            const diff = differenceInMinutes(depDate, depScheduled);
+            if (diff > 15) {
               depStatus = 'late';
+              depDelayMinutes = diff;
             }
           }
         }
 
         let arrStatus: 'early' | 'late' | null = null;
+        let arrDelayMinutes: number | null = null;
         if (arrDate && arrScheduled) {
-          if (isBefore(arrDate, arrScheduled)) arrStatus = 'early';
-          else if (differenceInMinutes(arrDate, arrScheduled) > 15)
-            arrStatus = 'late';
+          if (isBefore(arrDate, arrScheduled)) {
+            arrStatus = 'early';
+          } else {
+            const diff = differenceInMinutes(arrDate, arrScheduled);
+            if (diff > 15) {
+              arrStatus = 'late';
+              arrDelayMinutes = diff;
+            }
+          }
         }
 
         return {
@@ -138,6 +150,8 @@
           arrAt: (arrDate ?? arrScheduled) as Date | null,
           depStatus,
           arrStatus,
+          depDelayMinutes,
+          arrDelayMinutes,
           seat: formatSeatForUser(f, seatUserId),
           passengers: showPassengerDetails ? getFlightPassengerLabels(f) : [],
         };
@@ -500,7 +514,7 @@
                   {/if}
                   <div aria-hidden="true"></div>
                   <div class="hidden min-w-0 flex-col lg:flex">
-                    {@render seatAndAirline(flight)}
+                    {@render airlineAndDelay(flight)}
                   </div>
                   <div class="hidden lg:block" aria-hidden="true"></div>
                   <div class="hidden min-w-0 flex-col xl:flex">
@@ -602,21 +616,29 @@
   </div>
 {/snippet}
 
-{#snippet seatAndAirline(flight)}
-  {#if flight.seat || flight.airline}
-    <Tooltip.AutoTooltip
-      text={flight.seat ?? flight.airline?.name ?? ''}
-      class="text-sm truncate"
-    />
-  {:else}
-    <p class="text-sm text-transparent">.</p>
-  {/if}
-  {#if flight.airline && flight.seat}
+{#snippet airlineAndDelay(flight)}
+  {#if flight.airline}
     <Tooltip.AutoTooltip
       text={flight.airline.name}
-      class="text-sm text-muted-foreground truncate"
+      class="text-sm truncate"
     />
+    {#if flight.depDelayMinutes != null && flight.arrDelayMinutes != null}
+      <p class="text-sm text-muted-foreground truncate">
+        Dep +{flight.depDelayMinutes}, Arr +{flight.arrDelayMinutes}
+      </p>
+    {:else if flight.depDelayMinutes != null}
+      <p class="text-sm text-muted-foreground truncate">
+        Dep +{flight.depDelayMinutes}
+      </p>
+    {:else if flight.arrDelayMinutes != null}
+      <p class="text-sm text-muted-foreground truncate">
+        Arr +{flight.arrDelayMinutes}
+      </p>
+    {:else}
+      <p class="text-sm text-transparent">.</p>
+    {/if}
   {:else}
+    <p class="text-sm text-transparent">.</p>
     <p class="text-sm text-transparent">.</p>
   {/if}
 {/snippet}
