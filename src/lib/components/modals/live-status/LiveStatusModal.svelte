@@ -83,6 +83,13 @@
       <p class="text-sm text-muted-foreground py-8 text-center">
         Loading upcoming flights…
       </p>
+    {:else if $upcomingQuery.isError}
+      <div class="rounded-md border border-destructive/40 bg-destructive/10 p-4">
+        <p class="text-sm font-medium">Couldn't load upcoming flights</p>
+        <p class="text-xs text-muted-foreground mt-1">
+          {$upcomingQuery.error?.message ?? 'Unknown error'}
+        </p>
+      </div>
     {:else if upcoming.length === 0}
       <EmptyState />
     {:else}

@@ -1,5 +1,4 @@
 import { TRPCError } from '@trpc/server';
-import { sql } from 'kysely';
 import { z } from 'zod';
 
 import { authedProcedure, router } from '$lib/server/trpc';
@@ -24,16 +23,14 @@ export const liveStatusRouter = router({
   // We treat `departure_scheduled` and `departure` as interchangeable for the
   // "when does this flight take off" question: users entering an upcoming
   // flight may put their boarding-pass time into either field, and we want
-  // to find them either way. COALESCE picks the first non-null value.
+  // to find them either way. The WHERE clause matches a row if EITHER:
+  //   (a) departureScheduled falls in the next 24 hours, or
+  //   (b) departureScheduled is null and departure falls in the next 24 hours.
   // Both columns are ISO-8601 strings which sort chronologically, so direct
   // string comparison works without any timezone parsing.
   listUpcoming: authedProcedure.query(async ({ ctx: { user } }) => {
     const nowIso = new Date().toISOString();
     const in24hIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-    const effectiveDep = sql<string>`COALESCE(${sql.ref(
-      'flight.departure_scheduled',
-    )}, ${sql.ref('flight.departure')})`;
 
     const rows = await db
       .selectFrom('flight')
@@ -43,13 +40,26 @@ export const liveStatusRouter = router({
       .leftJoin('airline', 'airline.id', 'flight.airlineId')
       .where('seat.userId', '=', user.id)
       .where('flight.flightNumber', 'is not', null)
-      .where(effectiveDep, 'is not', null)
-      .where(effectiveDep, '>=', nowIso)
-      .where(effectiveDep, '<=', in24hIso)
+      .where((eb) =>
+        eb.or([
+          eb.and([
+            eb('flight.departureScheduled', 'is not', null),
+            eb('flight.departureScheduled', '>=', nowIso),
+            eb('flight.departureScheduled', '<=', in24hIso),
+          ]),
+          eb.and([
+            eb('flight.departureScheduled', 'is', null),
+            eb('flight.departure', 'is not', null),
+            eb('flight.departure', '>=', nowIso),
+            eb('flight.departure', '<=', in24hIso),
+          ]),
+        ]),
+      )
       .select([
         'flight.id',
         'flight.flightNumber',
-        effectiveDep.as('departureScheduled'),
+        'flight.departureScheduled',
+        'flight.departure',
         'fromAirport.iata as fromIata',
         'fromAirport.tz as fromTz',
         'fromAirport.name as fromName',
@@ -58,13 +68,16 @@ export const liveStatusRouter = router({
         'airline.name as airlineName',
         'airline.iconPath as airlineIconPath',
       ])
-      .orderBy(effectiveDep, 'asc')
+      .orderBy('flight.departureScheduled', 'asc')
+      .orderBy('flight.departure', 'asc')
       .execute();
 
     return rows.map((row) => ({
       id: row.id,
       flightNumber: row.flightNumber as string,
-      departureScheduled: row.departureScheduled,
+      // Prefer the scheduled timestamp when present; fall back to the actual
+      // gate-out timestamp. One of the two is guaranteed non-null by the WHERE.
+      departureScheduled: (row.departureScheduled ?? row.departure) as string,
       from: { iata: row.fromIata, tz: row.fromTz, name: row.fromName },
       to: { iata: row.toIata, name: row.toName },
       airline: row.airlineName
