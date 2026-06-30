@@ -104,9 +104,9 @@
       </span>
     </div>
     <div class="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-      <span>Sch {fmtTime(leg.schedDep, leg.originTz)}</span>
+      <span>{fmtTime(leg.schedDep, leg.originTz)}</span>
       <span>→</span>
-      <span>Sch {fmtTime(leg.schedArr, leg.destinationTz)}</span>
+      <span>{fmtTime(leg.schedArr, leg.destinationTz)}</span>
     </div>
   </div>
   <div class="flex flex-col items-end justify-center text-right shrink-0">
