@@ -9,6 +9,8 @@
 </script>
 
 <script lang="ts">
+  import { ExternalLink } from '@o7/icon/lucide';
+
   import type { FR24Leg } from '$lib/server/utils/fr24';
   import { cn } from '$lib/utils';
 
@@ -81,17 +83,43 @@
   }
 
   const summary = $derived(pickSummary());
+
+  // Active legs (the one in motion or most-recently-landed) link out to
+  // FR24's flight-tracking page so the user can see the plane on the map.
+  // Other states aren't linked: 'mine' is the user's own flight (they can
+  // look up their own number); 'landed' is past data; 'scheduled' isn't yet
+  // tracked.
+  const fr24Url = $derived(
+    state === 'active' && leg.flightNumber
+      ? `https://www.flightradar24.com/${encodeURIComponent(leg.flightNumber)}`
+      : null,
+  );
 </script>
 
 <div
   class={cn(
-    'flex items-stretch gap-3 py-2',
+    'relative flex items-stretch gap-3 py-2',
     state === 'mine' && 'border-l-4 border-primary pl-3 font-semibold',
     state === 'active' && 'border-l-4 border-emerald-500 pl-3',
     state === 'landed' &&
       'border-l-4 border-zinc-400/50 dark:border-zinc-500/50 pl-3',
+    fr24Url && 'cursor-pointer hover:bg-hover transition-colors rounded',
   )}
 >
+  <!-- When this leg is the active one in the rotation, stretch an invisible
+       anchor over the whole row so any tap on the row opens FR24's live map
+       view for the flight. The visible content stays plain text; we just
+       give the user a big tap target plus a small external-link icon next
+       to the flight number as a discoverability hint. -->
+  {#if fr24Url}
+    <a
+      href={fr24Url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="View on FlightRadar24"
+      class="absolute inset-0"
+    ></a>
+  {/if}
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-2 text-sm">
       <span class="font-extrabold tracking-wide">
@@ -101,8 +129,13 @@
       <span class="font-extrabold tracking-wide">
         {leg.destination ?? '???'}
       </span>
-      <span class="text-muted-foreground text-xs ml-2 truncate">
+      <span
+        class="text-muted-foreground text-xs ml-2 truncate inline-flex items-center gap-1"
+      >
         {leg.flightNumber}
+        {#if fr24Url}
+          <ExternalLink size="12" class="shrink-0" />
+        {/if}
       </span>
     </div>
     <div class="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
