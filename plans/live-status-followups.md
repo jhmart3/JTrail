@@ -47,3 +47,74 @@ modal shows an explanatory paragraph but doesn't display the user's flight
 itself. Could improve by rendering a single-row card with the user's flight
 info (airline, route, scheduled times) so the user has visual confirmation
 the right flight is being tracked.
+
+## Stack Gate-Out and Gate-In on the user's own flight
+
+For state='mine' the relevant timestamp depends on perspective: pre-departure
+the user cares about gate-out (boarding cutoff); in-air they care about
+gate-in (when to plan the rest of the trip). Single-summary view forces a
+choice. Could replace the right column with two stacked lines for 'mine'
+only:
+
+  Est. Gate-Out 8:00 PM (+1:05)
+  Est. Gate-In 11:30 PM (+0:20)
+
+One eventDisplay() helper picks the best timestamp per event
+(real > est > sched), prefixes it appropriately, and computes the delay
+against scheduled. Other states keep the existing single-summary display.
+
+Prototyped on the `live-status-cache-invalidation` branch and reverted —
+recoverable from local reflog (commit `0ec8ad1`) if we want to restore.
+
+## Include in-progress flights in listUpcoming
+
+Lower bound on `listUpcoming` is currently `now` (only future flights). A
+flight delayed 2+ hours past scheduled is still the one the user is sitting
+at the gate for — but it drops off the live tracker as soon as scheduled
+time passes. Widen the lookback to `now - 6h` so heavily-delayed in-progress
+flights stay visible.
+
+Cascade: when `yourLeg.realDep` is set (user's flight has pushed back), no
+prior leg should get the green 'active' border. All priors completed before
+the user's flight could depart, so they're all 'landed'. RotationView's
+activeIndex needs to short-circuit to -1 when yourLeg is in motion.
+
+Prototyped on the `live-status-cache-invalidation` branch and reverted —
+recoverable from local reflog (commit `c233623`) if we want to restore.
+
+## Derive arrival estimate when FR24 doesn't have one
+
+For the user's own flight, if FR24 has a real or estimated departure but no
+arrival estimate, fall back to a derived `Est. Gate-In` = depTs + (schedArr
+- schedDep). Heuristic matches what airline apps do — propagate the dep
+delay to arrival assuming no in-flight makeup.
+
+Useful when a flight is in progress but FR24 hasn't published an estArr
+yet (data lag). Current behavior falls back to scheduled, which feels
+inconsistent against a clearly-delayed gate-out line above.
+
+Prototyped on the `live-status-cache-invalidation` branch and reverted —
+recoverable from local reflog (commit `a63e5ea`).
+
+## Disambiguate tail lookup by user's scheduled departure + destination
+
+`findAssignedTail` currently returns the first board row matching the flight
+number. FR24's departures board returns multiple days of the same flight
+number (yesterday's, today's, tomorrow's), AND flight numbers can repeat
+within a day for different routes — so the first-match behavior can pick up
+the wrong day's row OR a same-flight-number row for a different destination.
+Either way the wrong tail leaks through and the rotation walk produces stale
+data for downstream legs.
+
+Fix: thread the user's `departureScheduled` (ISO) and `destinationIata`
+through to `findAssignedTail`. Filter by destination, then pick the
+remaining row whose schedDep is closest to the user's target. Short-circuit
+on the first within ±6h (definitely the right day), else track best across
+all pages.
+
+Prototyped on the `live-status-cache-invalidation` branch and reverted —
+recoverable from local reflog (commits `91bc10c` for the time fix and
+`d5eaedc` for the destination filter). Both need to land together to fully
+fix the wrong-tail case in production. Reverted because reproduction wasn't
+confirmed cleanly enough to ship — needs another round of testing against
+a flight where the wrong tail is consistently reported, then re-apply.
