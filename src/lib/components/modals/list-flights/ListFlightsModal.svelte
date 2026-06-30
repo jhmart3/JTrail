@@ -73,6 +73,14 @@
     showPassengerDetails?: boolean;
   } = $props();
 
+  // Renders a positive delay in minutes as "37" under an hour, "1:15" at or above.
+  const formatDelay = (minutes: number) => {
+    if (minutes < 60) return `${minutes}`;
+    const h = Math.floor(minutes / 60);
+    const mm = String(minutes % 60).padStart(2, '0');
+    return `${h}:${mm}`;
+  };
+
   const formattedFlights = $derived.by(() => {
     const data = filteredFlights;
     if (!data) return [];
@@ -624,15 +632,17 @@
     />
     {#if flight.depDelayMinutes != null && flight.arrDelayMinutes != null}
       <p class="text-sm text-muted-foreground truncate">
-        Dep +{flight.depDelayMinutes}, Arr +{flight.arrDelayMinutes}
+        Dep +{formatDelay(flight.depDelayMinutes)}, Arr +{formatDelay(
+          flight.arrDelayMinutes,
+        )}
       </p>
     {:else if flight.depDelayMinutes != null}
       <p class="text-sm text-muted-foreground truncate">
-        Dep +{flight.depDelayMinutes}
+        Dep +{formatDelay(flight.depDelayMinutes)}
       </p>
     {:else if flight.arrDelayMinutes != null}
       <p class="text-sm text-muted-foreground truncate">
-        Arr +{flight.arrDelayMinutes}
+        Arr +{formatDelay(flight.arrDelayMinutes)}
       </p>
     {:else}
       <p class="text-sm text-transparent">.</p>
