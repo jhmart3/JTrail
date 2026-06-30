@@ -2,9 +2,8 @@
   // Visual classification of a leg row, controls the left-border color.
   //   - 'mine'      → the user's own flight, accent blue
   //   - 'active'    → the rotation leg currently in motion or most recently
-  //                   landed; neutral grey to draw the eye without competing
-  //                   with 'mine'
-  //   - 'landed'    → completed past legs, faint emerald
+  //                   landed; emerald to signal "this one matters now"
+  //   - 'landed'    → completed past legs, faint grey (faded, not interesting)
   //   - 'scheduled' → not yet started, no border
   export type LegState = 'mine' | 'active' | 'landed' | 'scheduled';
 </script>
@@ -77,9 +76,9 @@
   class={cn(
     'flex items-stretch gap-3 py-2',
     state === 'mine' && 'border-l-4 border-primary pl-3 font-semibold',
-    state === 'active' &&
-      'border-l-4 border-zinc-400 dark:border-zinc-500 pl-3',
-    state === 'landed' && 'border-l-4 border-emerald-500/50 pl-3',
+    state === 'active' && 'border-l-4 border-emerald-500 pl-3',
+    state === 'landed' &&
+      'border-l-4 border-zinc-400/50 dark:border-zinc-500/50 pl-3',
   )}
 >
   <div class="flex-1 min-w-0">
@@ -96,9 +95,17 @@
       </span>
     </div>
     <div class="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-      <span>Dep {fmtTime(leg.schedDep, leg.originTz)}</span>
+      {#if leg.realDep}
+        <span>Dep. {fmtTime(leg.realDep, leg.originTz)}</span>
+      {:else}
+        <span>Sch {fmtTime(leg.schedDep, leg.originTz)}</span>
+      {/if}
       <span>→</span>
-      <span>Arr {fmtTime(leg.schedArr, leg.destinationTz)}</span>
+      {#if leg.realArr}
+        <span>Arr {fmtTime(leg.realArr, leg.destinationTz)}</span>
+      {:else}
+        <span>Sch {fmtTime(leg.schedArr, leg.destinationTz)}</span>
+      {/if}
     </div>
   </div>
   <div class="flex flex-col items-end justify-center text-right shrink-0">
