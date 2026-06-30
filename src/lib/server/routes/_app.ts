@@ -9,6 +9,7 @@ import { autocompleteRouter } from '$lib/server/routes/autocomplete';
 import { customFieldRouter } from '$lib/server/routes/custom-field';
 import { flightRouter } from '$lib/server/routes/flight';
 import { flightTrackRouter } from '$lib/server/routes/flight-track';
+import { liveStatusRouter } from '$lib/server/routes/live-status';
 import { oauthRouter } from '$lib/server/routes/oauth';
 import { shareRouter } from '$lib/server/routes/share';
 import { sqlRouter } from '$lib/server/routes/sql';
@@ -23,6 +24,7 @@ export const appRouter = router({
   flight: flightRouter,
   flightTrack: flightTrackRouter,
   customField: customFieldRouter,
+  liveStatus: liveStatusRouter,
   oauth: oauthRouter,
   autocomplete: autocompleteRouter,
   share: shareRouter,
