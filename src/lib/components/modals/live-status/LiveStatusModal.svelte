@@ -24,11 +24,13 @@
     originIata: string;
     destinationIata: string;
     originTz: string;
+    schedDepIso: string;
   }>({
     flightNumber: '',
     originIata: 'XXX',
     destinationIata: 'XXX',
     originTz: 'UTC',
+    schedDepIso: new Date().toISOString(),
   });
 
   // Reactive options store. trpc-svelte-query wraps plain-object options in
@@ -78,6 +80,7 @@
         originIata: f.from.iata,
         destinationIata: f.to.iata,
         originTz: f.from.tz,
+        schedDepIso: f.departureScheduled,
       });
       if (cached?.kind === 'ok' && cached.yourLeg.realArr != null) {
         return false;
@@ -109,6 +112,7 @@
         originIata: selected.from.iata,
         destinationIata: selected.to.iata,
         originTz: selected.from.tz,
+        schedDepIso: selected.departureScheduled,
       });
     }
   });
