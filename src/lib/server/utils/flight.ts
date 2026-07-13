@@ -220,6 +220,7 @@ export const validateAndSaveFlight = async (
     departureGate,
     arrivalTerminal,
     arrivalGate,
+    cancelled,
     customFields = {},
     track,
   } = data;
@@ -269,6 +270,7 @@ export const validateAndSaveFlight = async (
       note,
       seats: data.seats,
       track,
+      cancelled: cancelled ?? false,
     };
 
     return await saveFlightValues(values, customFields);
@@ -450,6 +452,7 @@ export const validateAndSaveFlight = async (
     note,
     seats: data.seats,
     track,
+    cancelled: cancelled ?? false,
   };
 
   return await saveFlightValues(values, customFields);

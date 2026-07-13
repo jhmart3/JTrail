@@ -246,6 +246,7 @@ export const processByAirFile = async (
       aircraft: null,
       aircraftReg: null,
       flightReason: mapFlightReason(row.purpose),
+      cancelled: false,
       seats: [
         {
           userId,
