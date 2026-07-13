@@ -18,6 +18,7 @@
     date: TZDate | null;
     month: string | null;
     passengers?: string[];
+    isNextTrip?: boolean;
   };
 
   type YearGroup = {
@@ -88,6 +89,14 @@
                     isSelected
                       ? 'bg-destructive/10 hover:bg-destructive/15'
                       : !isInteracting && 'hover:bg-hover active:bg-hover',
+                    // Blue accent on the next-trip flights so they stand
+                    // out in the chronological scroll. Same treatment
+                    // (border-l-4 + bg-primary/5) as the desktop card,
+                    // just anchored to the button since there's no wrapping
+                    // Card on mobile.
+                    !isSelected &&
+                      flight.isNextTrip &&
+                      'border-l-4 border-l-primary bg-primary/5',
                   )}
                   onclick={() => {
                     if (!readonly && selecting) {
