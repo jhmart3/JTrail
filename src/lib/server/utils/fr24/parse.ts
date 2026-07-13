@@ -10,6 +10,15 @@
 //      parse — the router fills them in via the JTrail airports table.
 export type FR24Leg = {
   flightNumber: string;
+  /**
+   * FR24's internal per-flight-instance ID (a hex string like "36c19c30").
+   * Present for flights FR24 is actively tracking; null for purely-scheduled
+   * future flights that haven't been assigned a live tracking session.
+   * Used to build deep-link URLs that both desktop web AND the mobile app
+   * resolve correctly — the bare /<flight_number> shortcut is desktop-web
+   * only and the FR24 mobile app rejects it as "invalid link".
+   */
+  flightId: string | null;
   tail: string | null;
   origin: string | null;
   /** IANA tz name for the origin airport. Filled in by the router, not parse. */
@@ -54,6 +63,7 @@ export function parseLeg(raw: unknown): FR24Leg {
 
   return {
     flightNumber: (number.default ?? '') as string,
+    flightId: (ident.id ?? null) as string | null,
     tail: (aircraft.registration ?? null) as string | null,
     origin: (originCode.iata ?? null) as string | null,
     originTz: null,
