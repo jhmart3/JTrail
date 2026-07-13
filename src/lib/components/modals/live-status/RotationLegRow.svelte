@@ -1,8 +1,13 @@
 <script lang="ts" module>
-  // Visual classification of a leg row, controls the left-border color.
-  //   - 'mine'      → the user's own flight, accent blue
+  // Visual classification of a leg row, controls the left-border color and
+  // whether the row is tappable to open FR24. Orthogonal to `isMine` — the
+  // user's own leg starts as 'mine' before push-back and becomes 'active'
+  // once wheels-up, but the "is this yours" font-weight cue is carried by
+  // the separate `isMine` prop so it applies in either state.
+  //   - 'mine'      → the user's own flight before push-back, accent blue
   //   - 'active'    → the rotation leg currently in motion or most recently
-  //                   landed; emerald to signal "this one matters now"
+  //                   landed; emerald to signal "this one matters now".
+  //                   May be a prior leg OR the user's own leg once airborne.
   //   - 'landed'    → completed past legs, faint grey (faded, not interesting)
   //   - 'scheduled' → not yet started, no border
   export type LegState = 'mine' | 'active' | 'landed' | 'scheduled';
@@ -17,7 +22,8 @@
   let {
     leg,
     state,
-  }: { leg: FR24Leg; state: LegState } = $props();
+    isMine = false,
+  }: { leg: FR24Leg; state: LegState; isMine?: boolean } = $props();
 
   // Format an FR24 unix-seconds timestamp as a short 12-hour local time
   // ("11:55 AM") in the given IANA tz. hour12 is forced so non-US locales
@@ -117,10 +123,11 @@
 <div
   class={cn(
     'relative flex items-stretch gap-3 py-2',
-    state === 'mine' && 'border-l-4 border-primary pl-3 font-semibold',
+    state === 'mine' && 'border-l-4 border-primary pl-3',
     state === 'active' && 'border-l-4 border-emerald-500 pl-3',
     state === 'landed' &&
       'border-l-4 border-zinc-400/50 dark:border-zinc-500/50 pl-3',
+    isMine && 'font-semibold',
     fr24Url && 'cursor-pointer hover:bg-hover transition-colors rounded',
   )}
 >

@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import { sql } from 'kysely';
 import { z } from 'zod';
 
 import { authedProcedure, router } from '$lib/server/trpc';
@@ -17,20 +18,36 @@ function sanitizeFlightNumber(fn: string): string {
 }
 
 export const liveStatusRouter = router({
-  // Flights owned by the calling user, scheduled to depart within the next 24
-  // hours, that have a flight number set (required for FR24 lookup).
+  // Flights owned by the calling user that are "trackable now" — i.e. worth
+  // showing in the live-status modal. The window is intentionally forgiving on
+  // both ends so a flight doesn't blink out of the modal at scheduled push-back
+  // just because `now` crossed the scheduled-departure timestamp.
   //
-  // We treat `departure_scheduled` and `departure` as interchangeable for the
-  // "when does this flight take off" question: users entering an upcoming
-  // flight may put their boarding-pass time into either field, and we want
-  // to find them either way. The WHERE clause matches a row if EITHER:
-  //   (a) departureScheduled falls in the next 24 hours, or
-  //   (b) departureScheduled is null and departure falls in the next 24 hours.
-  // Both columns are ISO-8601 strings which sort chronologically, so direct
+  // A flight qualifies when ALL of:
+  //   Rule 1  – scheduled departure is <= 24 h in the future
+  //             (i.e. COALESCE(departureScheduled, departure) <= now + 24h).
+  //   Rule 2a – user has NOT populated an actual arrival timestamp yet. Once
+  //             the user records that they're on the ground, the trip is done
+  //             from JTrail's perspective and we stop tracking it.
+  //   Rule 3  – it's still less than 6 h past the effective scheduled arrival,
+  //             where effective arrival falls back to (scheduled dep + 24 h)
+  //             if the user only entered a departure time. This is the hard
+  //             backstop for cancelled flights and cases where FR24's DB
+  //             never records a landing.
+  //
+  // Rule 2b (FR24 says landed) is enforced client-side in LiveStatusModal
+  // against the cached rotation payload, so we never fan out FR24 calls from
+  // this endpoint and never persist FR24 timings back to `flight.arrival`
+  // (which is user-owned).
+  //
+  // Timestamps are ISO-8601 strings which sort chronologically, so plain
   // string comparison works without any timezone parsing.
   listUpcoming: authedProcedure.query(async ({ ctx: { user } }) => {
-    const nowIso = new Date().toISOString();
-    const in24hIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date();
+    const in24hIso = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const sixHoursAgoIso = new Date(
+      now.getTime() - 6 * 60 * 60 * 1000,
+    ).toISOString();
 
     const rows = await db
       .selectFrom('flight')
@@ -40,20 +57,29 @@ export const liveStatusRouter = router({
       .leftJoin('airline', 'airline.id', 'flight.airlineId')
       .where('seat.userId', '=', user.id)
       .where('flight.flightNumber', 'is not', null)
-      .where((eb) =>
-        eb.or([
-          eb.and([
-            eb('flight.departureScheduled', 'is not', null),
-            eb('flight.departureScheduled', '>=', nowIso),
-            eb('flight.departureScheduled', '<=', in24hIso),
-          ]),
-          eb.and([
-            eb('flight.departureScheduled', 'is', null),
-            eb('flight.departure', 'is not', null),
-            eb('flight.departure', '>=', nowIso),
-            eb('flight.departure', '<=', in24hIso),
-          ]),
-        ]),
+      // Rule 2a — user hasn't logged the arrival yet.
+      .where('flight.arrival', 'is', null)
+      // Rule 1 — effective scheduled departure is <= 24 h in the future AND
+      // known. Everything is `text` on disk (ISO-8601 UTC strings), so we cast
+      // to timestamptz for the comparison so unusual formats can't sneak past
+      // plain string ordering.
+      .where(
+        sql<boolean>`coalesce(
+          ${sql.ref('flight.departureScheduled')},
+          ${sql.ref('flight.departure')}
+        )::timestamptz <= ${in24hIso}::timestamptz`,
+      )
+      // Rule 3 — effective scheduled arrival + 6 h hasn't passed yet.
+      // Fallback chain: arrivalScheduled → (departureScheduled + 24 h) →
+      // (departure + 24 h). The 24 h fallback is a generous placeholder for
+      // legs where the user only entered a departure time. The 6 h grace is
+      // applied by comparing against (now - 6 h) instead of `now`.
+      .where(
+        sql<boolean>`coalesce(
+          ${sql.ref('flight.arrivalScheduled')}::timestamptz,
+          ${sql.ref('flight.departureScheduled')}::timestamptz + interval '24 hours',
+          ${sql.ref('flight.departure')}::timestamptz + interval '24 hours'
+        ) >= ${sixHoursAgoIso}::timestamptz`,
       )
       .select([
         'flight.id',
@@ -108,7 +134,7 @@ export const liveStatusRouter = router({
 
       let yourLeg: FR24Leg | null;
       try {
-        yourLeg = await findAssignedTail(originIata, cleaned);
+        yourLeg = await findAssignedTail(originIata, destIata, cleaned);
       } catch (err) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
