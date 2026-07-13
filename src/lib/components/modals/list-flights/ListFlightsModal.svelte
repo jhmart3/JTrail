@@ -286,6 +286,14 @@
   // Mobile edit state
   let mobileEditFlight = $state<FlightData | null>(null);
   let mobileEditOpen = $state(false);
+  // Monotonically-increasing key for the mobile edit modal's {#key} block.
+  // Incremented on every open so tapping the SAME flight twice forces a
+  // remount of EditFlightModal — which re-runs its initial-form setup
+  // against whatever is currently in filteredFlights, picking up any
+  // updates from the previous save. Without this, the modal's superForm
+  // holds a snapshot of flight.raw from first mount and never refreshes,
+  // so newly-saved seats/edits appear absent until a page reload.
+  let mobileEditKey = $state(0);
 
   // Reference to MobileFlightList for resetting swipeable rows
   let mobileFlightListRef: MobileFlightList | undefined = $state();
@@ -294,6 +302,7 @@
     const originalFlight = filteredFlights.find((f) => f.id === flight.id);
     if (originalFlight) {
       mobileEditFlight = originalFlight;
+      mobileEditKey++;
       mobileEditOpen = true;
     }
   };
@@ -618,7 +627,7 @@
 
   <!-- Mobile Edit Modal -->
   {#if mobileEditFlight}
-    {#key mobileEditFlight.id}
+    {#key mobileEditKey}
       <EditFlightModal
         flight={mobileEditFlight}
         bind:open={mobileEditOpen}
