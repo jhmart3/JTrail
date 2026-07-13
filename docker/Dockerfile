@@ -3,21 +3,18 @@ FROM johly/airtrail-airport-overlay:2026.5.23@sha256:05f30d8d73dca311f10931367fc
 FROM oven/bun:debian AS base
 WORKDIR /app
 
-# Throttle bun's parallel HTTP connections. Default is high (~256), which
-# reliably triggers ConnectionRefused / FailedToOpenSocket on buildkit's
-# virtual network layer (same class of failure this hit inside a Proxmox
-# LXC container). 32 is comfortably below the fanout limit without slowing
-# incremental builds meaningfully.
-ENV BUN_CONFIG_MAX_HTTP_REQUESTS=32
-
 FROM base AS install
 RUN mkdir -p /temp/dev
 COPY package.json bun.lock /temp/dev/
-RUN cd /temp/dev && bun install --frozen-lockfile
+# --network-concurrency=8 (default is 48) throttles bun's parallel HTTP
+# fanout so buildkit's virtual network layer doesn't refuse sockets.
+# Same class of failure that broke bun install inside a Proxmox LXC.
+# 8 is a big safety margin; incremental installs are still fast.
+RUN cd /temp/dev && bun install --frozen-lockfile --network-concurrency=8
 
 RUN mkdir -p /temp/prod
 COPY package.json bun.lock /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production
+RUN cd /temp/prod && bun install --frozen-lockfile --production --network-concurrency=8
 
 FROM base AS build
 COPY --from=install /temp/dev/node_modules node_modules
