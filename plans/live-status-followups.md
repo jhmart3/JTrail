@@ -68,19 +68,22 @@ recoverable from local reflog (commit `0ec8ad1`) if we want to restore.
 
 ## Include in-progress flights in listUpcoming
 
-Lower bound on `listUpcoming` is currently `now` (only future flights). A
-flight delayed 2+ hours past scheduled is still the one the user is sitting
-at the gate for — but it drops off the live tracker as soon as scheduled
-time passes. Widen the lookback to `now - 6h` so heavily-delayed in-progress
-flights stay visible.
+**Landed on branch `live-status-window-rules`** (2026-07-13). Replaced the
+strict `[now, now+24h]` filter with:
 
-Cascade: when `yourLeg.realDep` is set (user's flight has pushed back), no
-prior leg should get the green 'active' border. All priors completed before
-the user's flight could depart, so they're all 'landed'. RotationView's
-activeIndex needs to short-circuit to -1 when yourLeg is in motion.
+- Rule 1 — `COALESCE(departureScheduled, departure) <= now + 24h`
+- Rule 2a — `flight.arrival IS NULL` (user hasn't logged the arrival yet)
+- Rule 2b — cached rotation's `yourLeg.realArr` is null (client-side)
+- Rule 3 — `COALESCE(arrivalScheduled, departureScheduled + 24h,
+  departure + 24h) >= now - 6h`
 
-Prototyped on the `live-status-cache-invalidation` branch and reverted —
-recoverable from local reflog (commit `c233623`) if we want to restore.
+Same PR also fixed `findAssignedTail` to fall back from origin departures to
+destination arrivals so a mid-flight leg is still located after FR24 drops
+it from the departures board.
+
+The RotationView `activeIndex` short-circuit for `yourLeg.realDep`-set is
+still a follow-up — currently a prior leg can still receive the green border
+when the user's own flight has already pushed back.
 
 ## Derive arrival estimate when FR24 doesn't have one
 

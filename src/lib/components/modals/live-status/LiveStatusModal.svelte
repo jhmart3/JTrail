@@ -16,19 +16,6 @@
   const upcomingQuery = trpc.liveStatus.listUpcoming.query();
   const upcoming = $derived($upcomingQuery.data ?? []);
 
-  // Default selection to the next-soonest upcoming flight. The list is already
-  // ordered by departureScheduled ASC server-side.
-  let selectedId = $state<number | null>(null);
-  $effect(() => {
-    if (selectedId == null && upcoming.length > 0) {
-      selectedId = upcoming[0]!.id;
-    }
-  });
-
-  const selected = $derived(
-    upcoming.find((f) => f.id === selectedId) ?? null,
-  );
-
   // tRPC input store for the rotation query. Always populated with something
   // (so the type stays narrow); the query is gated by the reactive `enabled`
   // flag below until we actually have a selected flight.
@@ -42,17 +29,6 @@
     originIata: 'XXX',
     destinationIata: 'XXX',
     originTz: 'UTC',
-  });
-
-  $effect(() => {
-    if (selected) {
-      rotationInput.set({
-        flightNumber: selected.flightNumber,
-        originIata: selected.from.iata,
-        destinationIata: selected.to.iata,
-        originTz: selected.from.tz,
-      });
-    }
   });
 
   // Reactive options store. trpc-svelte-query wraps plain-object options in
@@ -74,17 +50,75 @@
     gcTime: Number.POSITIVE_INFINITY,
   });
 
+  const rotationQuery = trpc.liveStatus.getRotation.query(
+    rotationInput,
+    rotationOptions,
+  );
+
+  // Rule 2b — hide any flight whose cached FR24 rotation has already recorded
+  // an actual arrival timestamp. This is the "FR24 says landed" backstop that
+  // lets the modal drop a completed flight even when the user hasn't logged
+  // the arrival in JTrail (and we intentionally don't auto-write to
+  // `flight.arrival`, since that column is user-owned).
+  //
+  // The cache is populated lazily — a flight only has a cached rotation once
+  // the user has actually opened this modal on that flight and either loaded
+  // fresh data or hit refresh. So a landed flight the user hasn't opened yet
+  // will stay visible until Rule 3 (scheduledArrival + 6 h) kicks in
+  // server-side. That's the intended tradeoff for not fanning out FR24 calls.
+  //
+  // We touch `$rotationQuery.data` inside the derive so the filter re-runs
+  // whenever the currently-selected flight's rotation refetches — otherwise
+  // Svelte wouldn't know the cache had changed underneath us.
+  const filteredUpcoming = $derived.by(() => {
+    void $rotationQuery.data;
+    return upcoming.filter((f) => {
+      const cached = trpc.liveStatus.getRotation.utils.getData({
+        flightNumber: f.flightNumber,
+        originIata: f.from.iata,
+        destinationIata: f.to.iata,
+        originTz: f.from.tz,
+      });
+      if (cached?.kind === 'ok' && cached.yourLeg.realArr != null) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  // Default selection to the next-soonest upcoming flight. If the currently
+  // selected flight drops out of the filtered list (either because
+  // listUpcoming refetched without it or Rule 2b just fired), fall through
+  // to the next candidate. filteredUpcoming is ordered by scheduled dep ASC.
+  let selectedId = $state<number | null>(null);
+  $effect(() => {
+    const stillPresent = filteredUpcoming.some((f) => f.id === selectedId);
+    if (!stillPresent) {
+      selectedId = filteredUpcoming[0]?.id ?? null;
+    }
+  });
+
+  const selected = $derived(
+    filteredUpcoming.find((f) => f.id === selectedId) ?? null,
+  );
+
+  $effect(() => {
+    if (selected) {
+      rotationInput.set({
+        flightNumber: selected.flightNumber,
+        originIata: selected.from.iata,
+        destinationIata: selected.to.iata,
+        originTz: selected.from.tz,
+      });
+    }
+  });
+
   $effect(() => {
     rotationOptions.update((o) => ({
       ...o,
       enabled: !!selected && !!open,
     }));
   });
-
-  const rotationQuery = trpc.liveStatus.getRotation.query(
-    rotationInput,
-    rotationOptions,
-  );
 
   const rotation = $derived($rotationQuery.data);
   const isRotationLoading = $derived($rotationQuery.isLoading);
@@ -142,11 +176,11 @@
           {$upcomingQuery.error?.message ?? 'Unknown error'}
         </p>
       </div>
-    {:else if upcoming.length === 0}
+    {:else if filteredUpcoming.length === 0}
       <EmptyState />
     {:else}
       <FlightSelector
-        flights={upcoming}
+        flights={filteredUpcoming}
         {selectedId}
         onSelect={(id) => (selectedId = id)}
       />
@@ -165,12 +199,14 @@
         </div>
       {:else if rotation?.kind === 'tail_not_found'}
         <div class="rounded-md border border-border bg-card/40 p-4">
-          <p class="text-sm font-medium">No aircraft assigned yet</p>
+          <p class="text-sm font-medium">Not tracked by FlightRadar24</p>
           <p class="text-xs text-muted-foreground mt-1">
-            FlightRadar24 hasn't surfaced this flight on the
-            {selected?.from.iata} departures board yet. Aircraft assignments
-            usually appear within ~12 hours of departure. Check back closer to
-            your flight time.
+            This flight isn't on the {selected?.from.iata} departures board or
+            the {selected?.to.iata} arrivals board right now. If your flight is
+            still upcoming, aircraft assignments usually appear within ~12
+            hours of departure — check back closer to your flight time. If
+            your flight already landed, FR24 may have aged it out of the live
+            boards.
           </p>
         </div>
       {:else if rotation?.kind === 'ok'}
