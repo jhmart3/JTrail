@@ -3,18 +3,22 @@ FROM johly/airtrail-airport-overlay:2026.5.23@sha256:05f30d8d73dca311f10931367fc
 FROM oven/bun:debian AS base
 WORKDIR /app
 
+# Force IPv4 preference in glibc DNS resolution. Buildkit's virtual
+# network layer announces AAAA records but has no working IPv6 route,
+# which causes bun install to fail with a wave of ConnectionRefused /
+# FailedToOpenSocket errors within a few seconds (see oven-sh/bun#4988).
+# Bumping the precedence of IPv4-mapped addresses makes getaddrinfo hand
+# back A records first, so bun never tries the broken IPv6 path.
+RUN echo 'precedence ::ffff:0:0/96 100' > /etc/gai.conf
+
 FROM base AS install
 RUN mkdir -p /temp/dev
 COPY package.json bun.lock /temp/dev/
-# --network-concurrency=8 (default is 48) throttles bun's parallel HTTP
-# fanout so buildkit's virtual network layer doesn't refuse sockets.
-# Same class of failure that broke bun install inside a Proxmox LXC.
-# 8 is a big safety margin; incremental installs are still fast.
-RUN cd /temp/dev && bun install --frozen-lockfile --network-concurrency=8
+RUN cd /temp/dev && bun install --frozen-lockfile
 
 RUN mkdir -p /temp/prod
 COPY package.json bun.lock /temp/prod/
-RUN cd /temp/prod && bun install --frozen-lockfile --production --network-concurrency=8
+RUN cd /temp/prod && bun install --frozen-lockfile --production
 
 FROM base AS build
 COPY --from=install /temp/dev/node_modules node_modules
