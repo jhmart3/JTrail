@@ -85,7 +85,17 @@
     const data = filteredFlights;
     if (!data) return [];
 
-    return data
+    const nowMs = Date.now();
+    // Calendar-date key (YYYY-MM-DD) in the origin airport's tz. Two flights
+    // on the same date-in-origin-tz belong to the same trip day even if their
+    // UTC dates differ around midnight boundaries.
+    const dateKeyInOriginTz = (
+      depAt: Date | null,
+      tz: string | undefined,
+    ): string | null =>
+      depAt ? depAt.toLocaleDateString('en-CA', { timeZone: tz }) : null;
+
+    const preliminary = data
       .map((f) => {
         const depDate = f.departure;
         const arrDate = f.arrival;
@@ -173,6 +183,33 @@
           return 0;
         }
       });
+
+    // Highlight the user's next trip. Find the earliest flight whose
+    // effective departure (actual > scheduled) is still in the future, take
+    // its calendar date in the origin airport's tz, then flag every other
+    // upcoming flight that shares that date. Handles the multi-leg trip case:
+    // if the next trip is 5 days out with two legs same-day, both light up.
+    // Already-taken legs of an in-progress trip stay dim (their depAt is in
+    // the past).
+    let nextTripDateKey: string | null = null;
+    let nextTripTs = Infinity;
+    for (const f of preliminary) {
+      if (!f.depAt) continue;
+      const ts = f.depAt.getTime();
+      if (ts > nowMs && ts < nextTripTs) {
+        nextTripTs = ts;
+        nextTripDateKey = dateKeyInOriginTz(f.depAt, f.from?.tz);
+      }
+    }
+
+    return preliminary.map((f) => ({
+      ...f,
+      isNextTrip:
+        nextTripDateKey !== null &&
+        f.depAt !== null &&
+        f.depAt.getTime() > nowMs &&
+        dateKeyInOriginTz(f.depAt, f.from?.tz) === nextTripDateKey,
+    }));
   });
 
   const flightsPerPage = 20;
@@ -491,6 +528,8 @@
                   level="2"
                   class={cn(
                     'col-span-full grid grid-cols-subgrid items-center p-3',
+                    flight.isNextTrip &&
+                      'border-l-4 border-l-primary bg-primary/5',
                     {
                       'cursor-pointer border-zinc-600 border-dotted border-2':
                         !readonly && selecting,
