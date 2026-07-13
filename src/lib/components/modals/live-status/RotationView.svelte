@@ -12,51 +12,32 @@
     priorLegs,
   }: { yourLeg: FR24Leg; priorLegs: FR24Leg[] } = $props();
 
-  // Once the user's own leg has pushed back (realDep set), it becomes the
-  // active leg — no earlier rotation can still be "in motion" ahead of it,
-  // since a prior leg must complete before this aircraft can fly out again.
-  // Before push-back the user's leg is 'mine' (blue border, no FR24 link)
-  // so they don't see a live-tracking link for a flight that hasn't taken
-  // off yet.
+  // Unified state assignment for every leg in the rotation.
   //
-  // 'active' here also covers a just-landed yourLeg (realArr set) — that
-  // window is brief because the client-side Rule 2b filter drops the whole
-  // flight from the modal on the next re-derive.
-  const yourLegState = $derived<LegState>(yourLeg.realDep ? 'active' : 'mine');
-
-  // Pick the "active" leg among the priors. Definition:
-  //   - First preference: the last leg that's pushed back but not yet arrived
-  //     (realDep set, realArr null). That's currently in flight or on the
-  //     tarmac, the most actionable signal for the user's eventual handoff.
-  //   - Fallback: the most recently landed leg (highest realArr).
-  //   - If no leg has any real data at all, nothing is "active".
+  //   1. 'active' — FR24 is actively tracking this flight (ADS-B live), OR
+  //      FR24 knows the flight is airborne but temporarily out of ADS-B
+  //      coverage (over ocean, MEL'd transponder). Emerald border + tappable
+  //      FR24 link. Physically only one leg per rotation can be here at a
+  //      time (same aircraft, one live session), so no "pick one" tiebreak
+  //      is needed.
+  //   2. 'mine' — the user's own leg, and it isn't currently active. Blue
+  //      border. Covers both pre-departure ("plane hasn't started boarding
+  //      you yet") and post-landing ("you're on the ground, waiting for the
+  //      6h server rule to hide the flight from the modal").
+  //   3. 'landed' — a prior leg with an arrival timestamp that isn't
+  //      currently live. Grey border — completed history.
+  //   4. 'scheduled' — a prior leg with no timing data yet. No border.
   //
-  // Short-circuits to -1 once the user's own leg is airborne: at that point
-  // the emerald "watch this one" cue belongs on yourLeg, and every prior
-  // leg is by definition already on the ground.
-  const activeIndex = $derived.by<number>(() => {
-    if (yourLeg.realDep) return -1;
-    for (let i = priorLegs.length - 1; i >= 0; i--) {
-      const leg = priorLegs[i]!;
-      if (leg.realDep && !leg.realArr) return i;
-    }
-    let bestArr = 0;
-    let bestIdx = -1;
-    for (let i = 0; i < priorLegs.length; i++) {
-      const arr = priorLegs[i]!.realArr ?? 0;
-      if (arr > bestArr) {
-        bestArr = arr;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  });
-
-  const classifyPrior = (leg: FR24Leg, i: number): LegState => {
-    if (i === activeIndex) return 'active';
+  // isMine controls font-weight independently of state (see RotationLegRow),
+  // so the user's leg reads as "yours" in every state.
+  const classify = (leg: FR24Leg, isMine: boolean): LegState => {
+    if (leg.isLive || (leg.realDep && !leg.realArr)) return 'active';
+    if (isMine) return 'mine';
     if (leg.realArr) return 'landed';
     return 'scheduled';
   };
+
+  const yourLegState = $derived(classify(yourLeg, true));
 </script>
 
 <section class="space-y-1">
@@ -78,7 +59,7 @@
     </p>
   {:else}
     {#each priorLegs as leg, i (i)}
-      <RotationLegRow {leg} state={classifyPrior(leg, i)} />
+      <RotationLegRow {leg} state={classify(leg, false)} />
       <Separator />
     {/each}
   {/if}
