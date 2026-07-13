@@ -37,6 +37,16 @@ export type FR24Leg = {
   estDep: number | null;
   /** FR24 estimate for an upcoming arrival. Null once realArr is known. */
   estArr: number | null;
+  /**
+   * True when FR24 is actively receiving ADS-B pings for this flight session
+   * right now — i.e. the aircraft's transponder is broadcasting and FR24 has
+   * live position updates. Fires during taxi-out (engines up, still on the
+   * ground) through in-flight through taxi-in, then flips false when the
+   * plane parks and shuts down. Distinct from `flightId`, which stays set
+   * before AND after the live window. Primary signal for "should this leg
+   * get the emerald active-tracking treatment in the UI."
+   */
+  isLive: boolean;
   status: string;
 };
 
@@ -76,6 +86,7 @@ export function parseLeg(raw: unknown): FR24Leg {
     realArr: (real.arrival ?? null) as number | null,
     estDep: (estimated.departure ?? null) as number | null,
     estArr: (estimated.arrival ?? null) as number | null,
+    isLive: status.live === true,
     status: (status.text ?? 'Unknown') as string,
   };
 }
