@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { authedProcedure, router } from '$lib/server/trpc';
 import { db } from '$lib/db';
 import {
-  findAssignedTail,
+  findFlightInstance,
   getTailHistoryToday,
   getBackupRoutes,
   type FR24Leg,
@@ -125,16 +125,30 @@ export const liveStatusRouter = router({
         // rotation walk. Required because the server's local TZ doesn't
         // generally match the user's flight origin TZ.
         originTz: z.string().min(1),
+        // The user's scheduled departure from JTrail's DB, ISO-8601. Used
+        // to disambiguate when FR24 returns multiple instances of the same
+        // flight number (yesterday's, today's, tomorrow's, plus same-day
+        // siblings on unrelated routes for airlines that reuse numbers).
+        // We pick the instance whose schedDep is closest to this timestamp.
+        schedDepIso: z.string().datetime({ offset: true }),
       }),
     )
     .query(async ({ input }) => {
       const cleaned = sanitizeFlightNumber(input.flightNumber);
       const originIata = input.originIata.toUpperCase();
       const destIata = input.destinationIata.toUpperCase();
+      const targetSchedDepTs = Math.floor(
+        new Date(input.schedDepIso).getTime() / 1000,
+      );
 
       let yourLeg: FR24Leg | null;
       try {
-        yourLeg = await findAssignedTail(originIata, destIata, cleaned);
+        yourLeg = await findFlightInstance(
+          cleaned,
+          originIata,
+          destIata,
+          targetSchedDepTs,
+        );
       } catch (err) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -142,8 +156,8 @@ export const liveStatusRouter = router({
         });
       }
 
-      // FR24 hasn't surfaced this flight on the board yet (common when the
-      // flight is >12 h out). Treat as a soft "not found" so the UI can render
+      // FR24 hasn't surfaced this flight yet (very early boarding calls or
+      // unusual data gaps). Treat as a soft "not found" so the UI can render
       // a "check back later" empty state instead of an error toast.
       if (yourLeg === null) {
         return {
