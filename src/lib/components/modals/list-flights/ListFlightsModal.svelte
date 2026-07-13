@@ -175,8 +175,15 @@
         };
       })
       .sort((a, b) => {
-        if (a.departure && b.departure) {
-          return isBefore(a.departure, b.departure) ? 1 : -1;
+        // Sort DESC by effective departure — later flights first. depAt is
+        // the coalesced timestamp (actual gate-out if known, else scheduled),
+        // so this stays deterministic for future flights whose actual gate-out
+        // hasn't happened yet. Previously the comparator checked a.departure
+        // (actual only), which was null for future flights and fell through
+        // to a dateStart tie — same-day future flights then landed in
+        // whatever order the DB returned, which shifted after any row update.
+        if (a.depAt && b.depAt) {
+          return isBefore(a.depAt, b.depAt) ? 1 : -1;
         } else if (a.dateStart && b.dateStart) {
           return isBefore(a.dateStart, b.dateStart) ? 1 : -1;
         } else {
