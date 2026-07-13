@@ -265,6 +265,7 @@ export const processFR24File = async (
       aircraftReg: row.registration,
       airline,
       flightNumber: row.flight_number,
+      cancelled: false,
       seats: [
         {
           userId,

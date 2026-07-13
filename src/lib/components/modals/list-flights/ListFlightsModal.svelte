@@ -586,7 +586,7 @@
                   <div class="hidden xl:block" aria-hidden="true"></div>
                   <div class="flex min-w-0 px-8 xl:px-12">
                     <div class="w-full grid grid-cols-[auto_1fr_auto] gap-3">
-                      {@render airport(flight.from)}
+                      {@render airport(flight.from, flight.cancelled)}
                       <div class="h-full flex flex-col justify-center">
                         <div class="relative">
                           <div
@@ -603,7 +603,7 @@
                           </div>
                         </div>
                       </div>
-                      {@render airport(flight.to)}
+                      {@render airport(flight.to, flight.cancelled)}
                     </div>
                   </div>
                   {#if !readonly}
@@ -767,9 +767,14 @@
   </Badge>
 {/snippet}
 
-{#snippet airport(airport)}
+{#snippet airport(airport, cancelled = false)}
   <div class="w-11 flex flex-col items-center justify-center">
-    <span class="text-lg font-bold">
+    <span
+      class={cn(
+        'text-lg font-bold',
+        cancelled && 'line-through text-red-600 dark:text-red-400',
+      )}
+    >
       {airport?.iata || airport?.icao || 'N/A'}
     </span>
     <Tooltip.AutoTooltip

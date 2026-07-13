@@ -19,6 +19,7 @@
     month: string | null;
     passengers?: string[];
     isNextTrip?: boolean;
+    cancelled?: boolean;
   };
 
   type YearGroup = {

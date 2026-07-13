@@ -36,6 +36,7 @@ const defaultFlight = {
   aircraftReg: null,
   flightReason: null,
   note: null,
+  cancelled: false,
   customFields: {},
 };
 

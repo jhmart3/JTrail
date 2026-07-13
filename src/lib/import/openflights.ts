@@ -480,6 +480,7 @@ export const processOpenFlightsFile = async (
       aircraftReg: row.registration,
       airline,
       flightNumber: row.flight_number,
+      cancelled: false,
       seats: [
         {
           userId,
