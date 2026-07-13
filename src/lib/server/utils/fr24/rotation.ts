@@ -21,6 +21,14 @@ const MAX_BOARD_PAGES = 15;
  * upcoming trips, then fall back to the destination arrivals board so the
  * UI keeps working once the leg is in the air. Returning null means the
  * flight isn't on either board — most likely already landed and aged out.
+ *
+ * Matches are disambiguated by BOTH origin and destination — some airlines
+ * (notably Southwest) reuse the same flight number for unrelated routes on
+ * the same day (e.g. WN1563 AUS→MCI at 12:35 AND WN1563 IND→MCI at 13:05).
+ * A flight-number-only match on either board would return the wrong leg.
+ * The board row's "implied" side (origin on departures, destination on
+ * arrivals) can come back null, so we treat null as "trust the queried
+ * context" — an explicit non-matching value is what rules a row out.
  */
 export async function findAssignedTail(
   originIata: string,
@@ -31,28 +39,27 @@ export async function findAssignedTail(
     const legs = await getBoardPage(originIata, 'departures', page);
     if (legs.length === 0) break;
     for (const leg of legs) {
-      if (leg.flightNumber === flightNumber) {
-        return { ...leg, origin: originIata };
+      if (leg.flightNumber !== flightNumber) continue;
+      if (leg.destination != null && leg.destination !== destinationIata) {
+        continue;
       }
+      return { ...leg, origin: originIata };
     }
   }
 
-  // Fallback: the destination's arrivals board carries the leg once it's
-  // pushed back / airborne. parseLeg populates origin from the row itself
-  // (present on arrivals rows) but the destination side may come back null
-  // because it's implied by the board we queried; coalesce both sides so
-  // downstream code always sees the right IATA pair.
   for (let page = 1; page <= MAX_BOARD_PAGES; page++) {
     const legs = await getBoardPage(destinationIata, 'arrivals', page);
     if (legs.length === 0) break;
     for (const leg of legs) {
-      if (leg.flightNumber === flightNumber) {
-        return {
-          ...leg,
-          origin: leg.origin ?? originIata,
-          destination: leg.destination ?? destinationIata,
-        };
+      if (leg.flightNumber !== flightNumber) continue;
+      if (leg.origin != null && leg.origin !== originIata) {
+        continue;
       }
+      return {
+        ...leg,
+        origin: leg.origin ?? originIata,
+        destination: leg.destination ?? destinationIata,
+      };
     }
   }
 
