@@ -81,9 +81,11 @@ Same PR also fixed `findAssignedTail` to fall back from origin departures to
 destination arrivals so a mid-flight leg is still located after FR24 drops
 it from the departures board.
 
-The RotationView `activeIndex` short-circuit for `yourLeg.realDep`-set is
-still a follow-up — currently a prior leg can still receive the green border
-when the user's own flight has already pushed back.
+Follow-up in the same branch (2026-07-13): once `yourLeg.realDep` is set,
+`activeIndex` short-circuits to -1 so no prior leg keeps the emerald border,
+and the user's own leg flips from state='mine' to state='active' (emerald +
+FR24 deep-link). Font-semibold on the user's row is now carried by a
+separate `isMine` prop so the bold cue persists across both states.
 
 ## Derive arrival estimate when FR24 doesn't have one
 
