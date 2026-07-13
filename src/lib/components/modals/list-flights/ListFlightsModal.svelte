@@ -16,6 +16,7 @@
   import MobileFlightList from './MobileFlightList.svelte';
   import Toolbar from './Toolbar.svelte';
 
+  import { page as appPage } from '$app/state';
   import { AirlineIcon, TimeDisplay } from '$lib/components/display';
   import {
     clearTempFilters as clearTempFilterValues,
@@ -44,11 +45,8 @@
     type FlightData,
   } from '$lib/utils';
   import { formatAircraft } from '$lib/utils/data/aircraft';
-  import {
-    Duration,
-    formatAsFlightDate,
-    parseLocalizeISO,
-  } from '$lib/utils/datetime';
+  import { Duration, parseLocalizeISO } from '$lib/utils/datetime';
+  import { formatFlightDate, getPreferences } from '$lib/utils/preferences';
   import { isMediumScreen } from '$lib/utils/size';
 
   let {
@@ -80,6 +78,8 @@
     const mm = String(minutes % 60).padStart(2, '0');
     return `${h}:${mm}`;
   };
+
+  const prefs = $derived(getPreferences(appPage.data.user));
 
   const formattedFlights = $derived.by(() => {
     const data = filteredFlights;
@@ -163,7 +163,7 @@
           depAt: (depDate ?? depScheduled) as Date | null,
           depFallback:
             !(depDate ?? depScheduled) && f.date
-              ? formatAsFlightDate(f.date, f.datePrecision, false, true)
+              ? formatFlightDate(f.date, f.datePrecision, prefs)
               : null,
           arrAt: (arrDate ?? arrScheduled) as Date | null,
           depStatus,
@@ -650,6 +650,7 @@
     {#if flight.depAt}
       <TimeDisplay
         date={flight.depAt}
+        dateStyle="compact"
         airportTz={flight.from?.tz}
         airportLabel={flight.from?.iata}
         side="right"
@@ -666,6 +667,7 @@
       <PlaneLanding size="16" class="mr-1" />
       <TimeDisplay
         date={flight.arrAt}
+        dateStyle="compact"
         airportTz={flight.to?.tz}
         airportLabel={flight.to?.iata}
         side="right"

@@ -1,12 +1,19 @@
 import type { Route } from '$lib/components/flight-filters/types';
-import type { FlightTrackCoordinate, FlightTrackRow } from '$lib/track/schema';
+import {
+  toFlightTrackSamples,
+  type FlightTrackRow,
+  type FlightTrackSample,
+} from '$lib/track/schema';
 import type { prepareFlightArcData, FlightData } from '$lib/utils';
 
 export type FlightArc = ReturnType<typeof prepareFlightArcData>[number];
 
-export type FlightTrackPath = FlightArc & {
+export type FlightTrackIdentity = FlightArc & {
   flightId: number;
-  path: FlightTrackCoordinate[];
+};
+
+export type FlightTrackPath = FlightTrackIdentity & {
+  samples: FlightTrackSample[];
 };
 
 export const getRouteKey = (fromId: number, toId: number) =>
@@ -23,26 +30,6 @@ export const routeMatchesArc = (
     (fromId === route.a && toId === route.b) ||
     (fromId === route.b && toId === route.a)
   );
-};
-
-export const unwrapTrackPath = (path: FlightTrackCoordinate[]) => {
-  if (!path.length) return path;
-  const unwrapped: FlightTrackCoordinate[] = [path[0]!];
-
-  for (let index = 1; index < path.length; index++) {
-    const previous = unwrapped[index - 1]!;
-    const current = path[index]!;
-    let lon = current[0];
-    while (lon - previous[0] > 180) lon -= 360;
-    while (lon - previous[0] < -180) lon += 360;
-    unwrapped.push(
-      current[2] === undefined
-        ? [lon, current[1]]
-        : [lon, current[1], current[2]],
-    );
-  }
-
-  return unwrapped;
 };
 
 export const buildArcFrequencyPercentileByRoute = (flightArcs: FlightArc[]) => {
@@ -90,6 +77,19 @@ export const findFullyTrackedRouteKeys = (
   return keys;
 };
 
+export const hasFallbackFlightArcs = (
+  flightArcs: FlightArc[],
+  trackFlightIds: Set<number>,
+) => {
+  const fullyTrackedRouteKeys = findFullyTrackedRouteKeys(
+    flightArcs,
+    trackFlightIds,
+  );
+  return flightArcs.some(
+    (arc) => !fullyTrackedRouteKeys.has(getRouteKey(arc.from.id, arc.to.id)),
+  );
+};
+
 export const buildFlightTrackPaths = (
   flights: FlightData[],
   flightArcs: FlightArc[],
@@ -111,7 +111,7 @@ export const buildFlightTrackPaths = (
     paths.push({
       ...arc,
       flightId: track.flightId,
-      path: unwrapTrackPath(track.coordinates),
+      samples: toFlightTrackSamples(track),
     });
   }
 
