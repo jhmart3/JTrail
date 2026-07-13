@@ -1,0 +1,6 @@
+[install]
+# Pin the registry to public npm. Overrides any user-level bunfig.toml
+# or .npmrc that would otherwise route installs through an internal
+# mirror which would poison bun.lock URLs unreachable from GitHub Actions
+# and other public CI.
+registry = "https://registry.npmjs.org/"
