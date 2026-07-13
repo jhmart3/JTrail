@@ -85,15 +85,33 @@
   const summary = $derived(pickSummary());
 
   // Active legs (the one in motion or most-recently-landed) link out to
-  // FR24's flight-tracking page so the user can see the plane on the map.
+  // FR24's flight page so the user can see the plane on the map. The URL
+  // format matters — FR24's desktop web resolves the shortcut
+  // `flightradar24.com/<flight_number>` via server-side redirect, but the
+  // mobile app intercepts URLs via Universal Links BEFORE they hit the
+  // server, and its route handler doesn't recognize the shortcut → shows
+  // "invalid link". Two well-defined formats that BOTH desktop and mobile
+  // app handle:
+  //   - /<flightId> : direct live-tracking URL when we have FR24's runtime
+  //     ID. Opens the map view immediately. Best when available.
+  //   - /data/flights/<lowercase flight_number> : flight history page.
+  //     Universal fallback when there's no flightId (e.g. a leg that
+  //     completed hours ago and dropped its live tracking session).
   // Other states aren't linked: 'mine' is the user's own flight (they can
   // look up their own number); 'landed' is past data; 'scheduled' isn't yet
   // tracked.
-  const fr24Url = $derived(
-    state === 'active' && leg.flightNumber
-      ? `https://www.flightradar24.com/${encodeURIComponent(leg.flightNumber)}`
-      : null,
-  );
+  const fr24Url = $derived.by(() => {
+    if (state !== 'active') return null;
+    if (leg.flightId) {
+      return `https://www.flightradar24.com/${encodeURIComponent(leg.flightId)}`;
+    }
+    if (leg.flightNumber) {
+      return `https://www.flightradar24.com/data/flights/${encodeURIComponent(
+        leg.flightNumber.toLowerCase(),
+      )}`;
+    }
+    return null;
+  });
 </script>
 
 <div
