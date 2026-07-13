@@ -3,6 +3,13 @@ FROM johly/airtrail-airport-overlay:2026.5.23@sha256:05f30d8d73dca311f10931367fc
 FROM oven/bun:debian AS base
 WORKDIR /app
 
+# Throttle bun's parallel HTTP connections. Default is high (~256), which
+# reliably triggers ConnectionRefused / FailedToOpenSocket on buildkit's
+# virtual network layer (same class of failure this hit inside a Proxmox
+# LXC container). 32 is comfortably below the fanout limit without slowing
+# incremental builds meaningfully.
+ENV BUN_CONFIG_MAX_HTTP_REQUESTS=32
+
 FROM base AS install
 RUN mkdir -p /temp/dev
 COPY package.json bun.lock /temp/dev/
