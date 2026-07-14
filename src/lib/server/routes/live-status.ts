@@ -10,6 +10,7 @@ import {
   getBackupRoutes,
   type FR24Leg,
 } from '$lib/server/utils/fr24';
+import { resolveFlightStatsDetailsUrl } from '$lib/server/utils/flightstats';
 
 // Normalize a user-entered flight number to the form FR24's departures board
 // uses: uppercase, no spaces/hyphens. "wn 500" → "WN500", "AA-1234" → "AA1234".
@@ -216,11 +217,67 @@ export const liveStatusRouter = router({
           (leg.destination && tzByIata.get(leg.destination)) ?? null,
       });
 
+      const enrichedYourLeg = enrich(yourLeg);
+
+      // FlightStats deep-link for the user's own leg specifically. Purpose is
+      // to give the user something useful to tap through to when their leg
+      // is still 'mine' (blue, pre-departure) — FR24's live-tracking link is
+      // reserved for the 'active' emerald state, so before ADS-B kicks in we
+      // fall back to FlightStats' more thorough scheduled-flight page.
+      //
+      // The scrape is best-effort: any failure (WAF challenge, HTML shape
+      // change, network glitch, no route match) returns null and the client
+      // renders no link. `flightStatsUrl` never blocks or fails the rotation
+      // response.
+      let flightStatsUrl: string | null = null;
+      const carrierMatch =
+        enrichedYourLeg.flightNumber.match(/^([A-Z0-9]{2,3})(\d+)$/);
+      if (
+        carrierMatch &&
+        enrichedYourLeg.origin &&
+        enrichedYourLeg.destination &&
+        enrichedYourLeg.schedDep
+      ) {
+        // Origin-local calendar date — FlightStats' URL scheme keys off the
+        // local date at the origin airport, not UTC. A 22:30 CDT departure
+        // is 03:30 UTC next-day; passing UTC would land us on the wrong
+        // day's records.
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: input.originTz,
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+        }).formatToParts(new Date(enrichedYourLeg.schedDep * 1000));
+        const get = (t: string) =>
+          Number(parts.find((p) => p.type === t)?.value);
+
+        try {
+          flightStatsUrl = await resolveFlightStatsDetailsUrl({
+            carrier: carrierMatch[1]!,
+            flightNumber: carrierMatch[2]!,
+            year: get('year'),
+            month: get('month'),
+            day: get('day'),
+            from: enrichedYourLeg.origin,
+            to: enrichedYourLeg.destination,
+          });
+        } catch (err) {
+          // Belt-and-suspenders: the resolver already catches internally,
+          // but a bug there shouldn't fail the whole rotation.
+          console.error(
+            '[flightstats] resolver threw:',
+            (err as Error)?.message ?? err,
+          );
+          flightStatsUrl = null;
+        }
+      }
+
       return {
         kind: 'ok' as const,
-        yourLeg: enrich(yourLeg),
+        yourLeg: enrichedYourLeg,
         priorLegs: priorLegs.map(enrich),
         backupRoutes: backupRoutes.map(enrich),
+        flightStatsUrl,
         fetchedAt: new Date().toISOString(),
       };
     }),
