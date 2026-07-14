@@ -1,4 +1,36 @@
 <div align="center">
+  <a href="https://airtrail.johan.ohly.dk/">
+    <img src="static/favicon.png" alt="AirTrail logo" width="80" height="80">
+  </a>
+
+<h3 align="center">JTrail</h3>
+
+  <p align="center">
+  A personal fork of JohanOhly's
+  <a href="https://github.com/JohanOhly/AirTrail">AirTrail</a>
+  with live flight-tracking features layered on top.
+  </p>
+</div>
+
+## ✨ What's changed?
+
+- **Live status view**: For any flight you have scheduled in the next 24 hours, tap the live-status button to see the aircraft's full same-day rotation with real-time status. Uses FlightRadar24 for live tracking and disambiguates same-day flights that reuse the same number across different routes.
+- **Contextual external links**: Your own flight in the new view links directly to FlightStats details page for scheduled/landed states and to FlightRadar24's live map once the aircraft's ADS-B transponder is broadcasting. Prior legs in the same rotation will also link to their FR24 pages when in flight.
+- **Responsive UI**: Driven by FR24's ADS-B live signal — the currently-in-motion leg (either your flight or a prior route in your aircraft's rotation) is always the one highlighted, and the highlighting moves forward automatically as the trip progresses.
+
+## ✈️ What's the same?  
+
+- **Full compatibility**: All upstream AirTrail features (flight logging, map, statistics, import from ~10 third-party formats, sharing, custom fields, OAuth, etc.) are preserved. Attribution and license remain with the original project; see below for the full upstream documentation.
+
+## 🚀 How to Deploy this Fork
+
+- The latest build of the JTrail container is hosted at [ghcr.io/jhmart3/jtrail:latest](ghcr.io/jhmart3/jtrail:latest). Switch your docker compose file to point to this distribution or builds from source.
+
+<br>
+
+# Original AirTrail README:
+
+<div align="center">
   <br/>
   <a href="https://hub.docker.com/r/johly/airtrail/">
     <img src="https://img.shields.io/docker/pulls/johly/airtrail?style=for-the-badge" alt="Docker pulls">
