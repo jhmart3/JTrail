@@ -217,6 +217,7 @@
         <RotationView
           yourLeg={rotation.yourLeg}
           priorLegs={rotation.priorLegs}
+          flightStatsUrl={rotation.flightStatsUrl}
         />
         {#if rotation.backupRoutes.length > 0}
           <BackupRoutes

@@ -10,7 +10,17 @@
   let {
     yourLeg,
     priorLegs,
-  }: { yourLeg: FR24Leg; priorLegs: FR24Leg[] } = $props();
+    flightStatsUrl = null,
+  }: {
+    yourLeg: FR24Leg;
+    priorLegs: FR24Leg[];
+    // Deep link to FlightStats' details page for the user's own leg.
+    // Only rendered on yourLeg when its state is 'mine' — priors are never
+    // linked (per product decision: FlightStats fallback is scoped to the
+    // user's scheduled flight before FR24 goes live). null when the scraper
+    // couldn't resolve a URL, in which case the row shows no link.
+    flightStatsUrl?: string | null;
+  } = $props();
 
   // Unified state assignment for every leg in the rotation.
   //
@@ -64,5 +74,5 @@
     {/each}
   {/if}
 
-  <RotationLegRow leg={yourLeg} state={yourLegState} isMine />
+  <RotationLegRow leg={yourLeg} state={yourLegState} isMine {flightStatsUrl} />
 </section>

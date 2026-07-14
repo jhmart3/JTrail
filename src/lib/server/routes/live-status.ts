@@ -10,6 +10,7 @@ import {
   getBackupRoutes,
   type FR24Leg,
 } from '$lib/server/utils/fr24';
+import { buildFlightStatsUrlForLeg } from '$lib/server/utils/flightstats';
 
 // Normalize a user-entered flight number to the form FR24's departures board
 // uses: uppercase, no spaces/hyphens. "wn 500" → "WN500", "AA-1234" → "AA1234".
@@ -216,11 +217,33 @@ export const liveStatusRouter = router({
           (leg.destination && tzByIata.get(leg.destination)) ?? null,
       });
 
+      const enrichedYourLeg = enrich(yourLeg);
+
+      // FlightStats deep-link for the user's own leg. Skipped when the leg
+      // is currently active on FR24 (isLive OR departed-but-not-arrived) —
+      // the client's linkUrl coalesce hands FR24's live-map link priority
+      // in that state anyway, so scraping FlightStats would waste an HTTP
+      // round-trip on a URL the UI ignores. Runs for pre-departure 'mine'
+      // legs and post-landing 'mine' legs (classify keeps yourLeg in 'mine'
+      // state after landing until the 6h server rule hides the flight —
+      // FlightStats' historical details page is still useful there for
+      // actual-vs-scheduled comparisons).
+      //
+      // buildFlightStatsUrlForLeg swallows all errors and returns null, so
+      // callers don't need an extra try/catch.
+      const yourLegIsActive =
+        enrichedYourLeg.isLive ||
+        (enrichedYourLeg.realDep != null && enrichedYourLeg.realArr == null);
+      const flightStatsUrl = yourLegIsActive
+        ? null
+        : await buildFlightStatsUrlForLeg(enrichedYourLeg, input.originTz);
+
       return {
         kind: 'ok' as const,
-        yourLeg: enrich(yourLeg),
+        yourLeg: enrichedYourLeg,
         priorLegs: priorLegs.map(enrich),
         backupRoutes: backupRoutes.map(enrich),
+        flightStatsUrl,
         fetchedAt: new Date().toISOString(),
       };
     }),

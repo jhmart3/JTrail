@@ -23,7 +23,18 @@
     leg,
     state,
     isMine = false,
-  }: { leg: FR24Leg; state: LegState; isMine?: boolean } = $props();
+    flightStatsUrl = null,
+  }: {
+    leg: FR24Leg;
+    state: LegState;
+    isMine?: boolean;
+    // Optional FlightStats deep-link for this row. Only honored when the
+    // row is the user's own leg AND state === 'mine' — priors are never
+    // linked to FlightStats per product scope. When state === 'active',
+    // fr24Url wins and this prop is ignored, so the FR24 live-map link
+    // always takes precedence once the flight goes airborne.
+    flightStatsUrl?: string | null;
+  } = $props();
 
   // Format an FR24 unix-seconds timestamp as a short 12-hour local time
   // ("11:55 AM") in the given IANA tz. hour12 is forced so non-US locales
@@ -118,6 +129,23 @@
     }
     return null;
   });
+
+  // Effective tap-target URL for this row. Two independent link sources
+  // stack, with active-state (FR24) always winning:
+  //   1. Active state → FR24 live-map link (fr24Url above).
+  //   2. Otherwise, if this is the user's own leg in 'mine' state AND we
+  //      have a FlightStats URL from the server, use that. FlightStats
+  //      fills the pre-departure gap where FR24 has no live tracking yet.
+  //
+  // When linkUrl is null, no tap-target styling, no icon, no anchor — the
+  // row is a plain read-only display. This is the failure mode when the
+  // FlightStats scraper couldn't resolve a URL, and matches the
+  // "fail-quiet" requirement.
+  const linkUrl = $derived.by<string | null>(() => {
+    if (fr24Url) return fr24Url;
+    if (isMine && state === 'mine' && flightStatsUrl) return flightStatsUrl;
+    return null;
+  });
 </script>
 
 <div
@@ -128,20 +156,21 @@
     state === 'landed' &&
       'border-l-4 border-zinc-400/50 dark:border-zinc-500/50 pl-3',
     isMine && 'font-semibold',
-    fr24Url && 'cursor-pointer hover:bg-hover transition-colors rounded',
+    linkUrl && 'cursor-pointer hover:bg-hover transition-colors rounded',
   )}
 >
-  <!-- When this leg is the active one in the rotation, stretch an invisible
-       anchor over the whole row so any tap on the row opens FR24's live map
-       view for the flight. The visible content stays plain text; we just
-       give the user a big tap target plus a small external-link icon next
-       to the flight number as a discoverability hint. -->
-  {#if fr24Url}
+  <!-- When this row has a resolved link URL, stretch an invisible anchor
+       over the whole row so any tap on the row opens the external page.
+       The visible content stays plain text; we give a big tap target plus
+       a small external-link icon next to the flight number for
+       discoverability. FR24 (emerald active) wins; FlightStats (blue
+       mine) fills in for the user's own pre-departure leg only. -->
+  {#if linkUrl}
     <a
-      href={fr24Url}
+      href={linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="View on FlightRadar24"
+      aria-label={fr24Url ? 'View on FlightRadar24' : 'View on FlightStats'}
       class="absolute inset-0"
     ></a>
   {/if}
@@ -158,7 +187,7 @@
         class="text-muted-foreground text-xs ml-2 truncate inline-flex items-center gap-1"
       >
         {leg.flightNumber}
-        {#if fr24Url}
+        {#if linkUrl}
           <ExternalLink size="12" class="shrink-0" />
         {/if}
       </span>
