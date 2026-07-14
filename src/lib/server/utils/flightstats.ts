@@ -191,3 +191,57 @@ export async function resolveFlightStatsDetailsUrl(input: {
     `?year=${input.year}&month=${input.month}&date=${input.day}&flightId=${match.flightId}`
   );
 }
+
+// Fields the URL builder pulls off an FR24Leg. Kept as a structural type
+// rather than importing FR24Leg here so this module stays independent of
+// the FR24 client shape; callers pass whatever slice they have.
+type LegForUrl = {
+  flightNumber: string;
+  origin: string | null;
+  destination: string | null;
+  schedDep: number | null;
+};
+
+/**
+ * Build a FlightStats details URL directly from an FR24 leg + its origin
+ * timezone. Handles the parse-and-compute steps around
+ * resolveFlightStatsDetailsUrl so callers (currently just getRotation) can
+ * hand off a leg object and get a URL or null.
+ *
+ * Returns null when:
+ *   - the flight number doesn't match the IATA 2-char + digits pattern
+ *   - the leg is missing origin/destination/schedDep
+ *   - the underlying scrape fails or finds no matching row
+ *
+ * IATA airline codes are always exactly 2 chars (letter+letter like DL,
+ * letter+digit like U2, digit+letter like 9W). Flight numbers are 1–4
+ * digits.
+ */
+export async function buildFlightStatsUrlForLeg(
+  leg: LegForUrl,
+  originTz: string,
+): Promise<string | null> {
+  const match = leg.flightNumber.match(/^([A-Z0-9]{2})(\d{1,4})$/);
+  if (!match || !leg.origin || !leg.destination || !leg.schedDep) return null;
+
+  // Origin-local calendar date — FlightStats' URL scheme keys off the
+  // local date at the origin airport, not UTC. A 22:30 CDT departure is
+  // 03:30 UTC next-day; passing UTC would land us on the wrong day's rows.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: originTz,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date(leg.schedDep * 1000));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+
+  return resolveFlightStatsDetailsUrl({
+    carrier: match[1]!,
+    flightNumber: match[2]!,
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    from: leg.origin,
+    to: leg.destination,
+  });
+}
