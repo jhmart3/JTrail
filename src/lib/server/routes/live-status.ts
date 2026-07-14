@@ -230,8 +230,16 @@ export const liveStatusRouter = router({
       // renders no link. `flightStatsUrl` never blocks or fails the rotation
       // response.
       let flightStatsUrl: string | null = null;
+      // Split "WN265" into carrier "WN" and flight-number "265". IATA
+      // airline codes are always exactly 2 characters (alphanumeric —
+      // covers letter+letter like DL/AA and letter+digit like U2, 9W, 4B).
+      // Flight numbers are 1–4 digits after the code. An earlier greedy
+      // `{2,3}` pattern misfired on "WN265" — regex engine took "WN2" as
+      // the 3-char carrier match, leaving "65" as the number, and the
+      // resulting URL was https://.../WN2/65?... which FlightStats returns
+      // 404 for.
       const carrierMatch =
-        enrichedYourLeg.flightNumber.match(/^([A-Z0-9]{2,3})(\d+)$/);
+        enrichedYourLeg.flightNumber.match(/^([A-Z0-9]{2})(\d{1,4})$/);
       if (
         carrierMatch &&
         enrichedYourLeg.origin &&
