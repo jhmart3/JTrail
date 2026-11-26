@@ -5,6 +5,7 @@
   import { AirlineIcon, RouteArrow } from '$lib/components/display';
   import { Badge } from '$lib/components/ui/badge';
   import type { Airline, Airport, FlightDatePrecision } from '$lib/db/types';
+  import { cn } from '$lib/utils';
   import { formatFlightDate, getPreferences } from '$lib/utils/preferences';
 
   type Flight = {
@@ -15,6 +16,7 @@
     date?: TZDate | null;
     datePrecision?: FlightDatePrecision;
     passengers?: string[];
+    cancelled?: boolean;
   };
 
   let {
@@ -54,11 +56,21 @@
     <!-- Route Info (Left Side) -->
     <div class="flex flex-col gap-1 min-w-0">
       <div class="flex items-center gap-2.5">
-        <span class="text-xl font-extrabold tracking-wide">
+        <span
+          class={cn(
+            'text-xl font-extrabold tracking-wide',
+            flight.cancelled && 'line-through text-red-600 dark:text-red-400',
+          )}
+        >
           {flight.from?.iata || flight.from?.icao || 'N/A'}
         </span>
         <RouteArrow class="size-[22px] fill-foreground" />
-        <span class="text-xl font-extrabold tracking-wide">
+        <span
+          class={cn(
+            'text-xl font-extrabold tracking-wide',
+            flight.cancelled && 'line-through text-red-600 dark:text-red-400',
+          )}
+        >
           {flight.to?.iata || flight.to?.icao || 'N/A'}
         </span>
       </div>

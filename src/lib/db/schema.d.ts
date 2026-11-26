@@ -138,6 +138,14 @@ export type flight = {
     flightReason: 'leisure' | 'business' | 'crew' | 'other' | null;
     aircraftReg: string | null;
     note: string | null;
+    /**
+     * JTrail-only: user-set flag for a flight that was scheduled but never
+     * actually flown (cancelled by the airline, missed connection, etc.).
+     * Kept in the flight list for record-keeping but hidden from the map
+     * route arcs and visually struck through. Not populated automatically
+     * — user-owned like `arrival`.
+     */
+    cancelled: Generated<boolean>;
     fromId: number | null;
     toId: number | null;
     aircraftId: number | null;

@@ -3,8 +3,10 @@
   import { z } from 'zod';
 
   import { AircraftField, AirlineField } from '$lib/components/form-fields';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import * as Form from '$lib/components/ui/form';
   import { Input, Textarea } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
   import * as Select from '$lib/components/ui/select';
   import { Separator } from '$lib/components/ui/separator';
   import { FlightReasons } from '$lib/db/types';
@@ -79,6 +81,33 @@
             bind:value={$formData.note}
             class="resize-y h-20 min-h-10 max-h-32"
             {...props}
+          />
+        {/snippet}
+      </Form.Control>
+      <Form.FieldErrors />
+    </Form.Field>
+    <Form.Field {form} name="cancelled">
+      <Form.Control>
+        {#snippet children({ props })}
+          <!-- Manual flag for a flight the user was scheduled on but which
+               never actually happened (airline cancel, missed connection,
+               etc.). Kept in the flight list for record-keeping but hidden
+               from the map's route arcs so the trip map stays a faithful
+               record of legs actually flown. Not populated automatically. -->
+          <div class="flex items-center gap-2">
+            <Checkbox
+              id={props.id}
+              bind:checked={$formData.cancelled}
+              aria-labelledby="{props.id}-label"
+            />
+            <Label id="{props.id}-label" for={props.id} class="cursor-pointer">
+              Cancelled flight
+            </Label>
+          </div>
+          <input
+            type="hidden"
+            value={$formData.cancelled ? 'true' : 'false'}
+            name={props.name}
           />
         {/snippet}
       </Form.Control>

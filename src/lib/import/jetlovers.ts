@@ -185,6 +185,7 @@ export const processJetLoversFile = async (
       aircraft,
       aircraftReg: row.aircraft_reg ? row.aircraft_reg.substring(0, 10) : null,
       flightReason: mapFlightReason(row.reason),
+      cancelled: false,
       seats: [
         {
           userId,

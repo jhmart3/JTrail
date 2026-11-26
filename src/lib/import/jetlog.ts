@@ -187,6 +187,7 @@ export const processJetLogFile = async (
       aircraft,
       aircraftReg: row.tail_number ? row.tail_number.substring(0, 10) : null,
       flightReason: row.purpose as CreateFlight['flightReason'],
+      cancelled: false,
       seats: [
         {
           userId,

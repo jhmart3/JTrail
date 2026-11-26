@@ -99,7 +99,7 @@ export const sanitizeHeader = (header: string) => {
     .replace(/_$/, '');
 };
 
-type CsvCell = string | number | object | null | undefined;
+type CsvCell = string | number | boolean | object | null | undefined;
 
 export const generateCsv = (data: Record<string, CsvCell>[]) => {
   if (!data[0]) {

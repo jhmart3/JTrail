@@ -144,6 +144,7 @@ export const flightOptionalInformationSchema = z.object({
   departureGate: z.string().max(10).nullable().optional(),
   arrivalTerminal: z.string().max(10).nullable().optional(),
   arrivalGate: z.string().max(10).nullable().optional(),
+  cancelled: z.boolean().default(false),
 });
 
 export const flightCustomFieldsSchema = z.object({

@@ -284,6 +284,7 @@ export const processFlightyFile = async (
       aircraft,
       aircraftReg: row.tail_number ? row.tail_number.substring(0, 10) : null,
       flightReason: mapFlightReason(row.flight_reason),
+      cancelled: false,
       seats: [
         {
           userId,

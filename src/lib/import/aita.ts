@@ -130,6 +130,7 @@ export const processAITAFile = async (
         aircraft: null,
         aircraftReg: null,
         note: null,
+        cancelled: false,
         seats: [
           {
             userId,

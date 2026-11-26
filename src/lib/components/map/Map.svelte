@@ -162,8 +162,19 @@
     });
   };
 
+  // Cancelled flights are dropped from every arc + visited-airport derivation.
+  // The user still sees them in the flight list (with a strike-through
+  // treatment) for record-keeping, but the map is a record of legs actually
+  // flown — a cancelled leg's route arc would falsely inflate the frequency
+  // scaling on that route, and an airport that only appears via cancelled
+  // legs was never actually visited.
+  const visibleFilteredFlights = $derived(
+    filteredFlights.filter((f) => !f.cancelled),
+  );
+  const visibleFlights = $derived(flights.filter((f) => !f.cancelled));
+
   const flightArcs = $derived.by(() => {
-    return prepareFlightArcData(filteredFlights);
+    return prepareFlightArcData(visibleFilteredFlights);
   });
   const trackFlightIds = $derived(
     new Set(flightTracks.map((track) => track.flightId)),
@@ -172,8 +183,8 @@
     hasFallbackFlightArcs(flightArcs, trackFlightIds),
   );
 
-  const allVisitedAirports = $derived(prepareVisitedAirports(flights));
-  const allFlightArcs = $derived(prepareFlightArcData(flights));
+  const allVisitedAirports = $derived(prepareVisitedAirports(visibleFlights));
+  const allFlightArcs = $derived(prepareFlightArcData(visibleFlights));
 
   const detailsPanePadding = () => {
     if (!mapDetailsState.selection) {
@@ -711,7 +722,7 @@
     {/if}
 
     <AirportsArcsLayer
-      flights={filteredFlights}
+      flights={visibleFilteredFlights}
       {flightArcs}
       {flightTracks}
       bind:tempFilters
